@@ -9,6 +9,29 @@
 	var dataLength = 500; // number of dataPoints visible at any point
   var chart;
   
+  
+  var updateChart = function(x) {
+    var yVal = Math.round( x );
+
+  	dps.push({
+  		x: xVal,
+  		y: yVal
+  	});
+  	xVal++;
+  
+    //$('#log').append('<br>Chart #' + msg.data + ': ' + xVal + ' dps.length: ' + dps.length);
+    console.log('<br>Chart #' + yVal + ': ' + xVal + ' dps.length: ' + dps.length);
+
+  	if (dps.length > dataLength)
+  	{
+  		dps.shift();
+  	}
+
+  	chart.render();
+  
+};
+  
+  
 	window.onload = function () {
 
 		chart = new CanvasJS.Chart("chartContainer",{
@@ -36,30 +59,24 @@
               // this is specially important when using the global namespace
               var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
               socket.on('connect', function() {
-                  socket.emit('my event', {data: 'I\'m connected!'});
+                  socket.emit('refresh', {data: 'hit me'});
               });
+              
+              socket.on('refresh data', function(msg) {
+                console.log('refreshing data');
+                
+                var index;
+                for	(index = 0; index < msg.data.length; index++) {
+                    updateChart(msg.data[index]);
+                }
+              });
+              
               // event handler for server sent data
               // the data is displayed in the "Received" section of the page
               socket.on('my response', function(msg) {
                   //$('#log').append('<br>Received #' + msg.count + ': ' + msg.data);
                   console.log('Received #' + msg.count + ': ' + msg.data);
-			            var yVal = Math.round( msg.data );
-      
-          				dps.push({
-          					x: xVal,
-          					y: yVal
-          				});
-          				xVal++;
-                  
-                  //$('#log').append('<br>Chart #' + msg.data + ': ' + xVal + ' dps.length: ' + dps.length);
-                  console.log('<br>Chart #' + msg.data + ': ' + xVal + ' dps.length: ' + dps.length);
-
-            			if (dps.length > dataLength)
-            			{
-            				dps.shift();
-            			}
-	
-            			chart.render();		
+                  updateChart(msg.data);
                   
               });
           });

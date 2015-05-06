@@ -8,6 +8,7 @@ import serial
 import re
 import threading
 import time
+import collections
 
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
@@ -23,30 +24,33 @@ port = '/dev/tty.usbmodem14211'
 baud = 9600
 ser = serial.Serial(port, 9600, timeout=0)
 
+# save some history
+values = collections.deque(maxlen=500)
+
 def handle_data(data):
     recv_data = data
     m = re.match("^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);", recv_data)
     try:
         print m.group(1) + " " + m.group(2) + " " + m.group(3)
+        values.append(m.group(3))
         broadcast_value(m.group(3))
     except Exception as e:
         pass
         time.sleep(0.1)
     
 def read_from_port(ser, connected=False):
-    while not connected:
-        connected = True
-
-        while True:
-            try:
-                reading = ser.readline().decode()
-                handle_data(reading)
-                time.sleep(1)
-            except Exception as e:
-                print("error, reconnecting: " + str(e))
-                ser.close();
-                time.seep(1)
-                ser = serial.Serial(port, 9600, timeout=0)
+  while not connected:
+    connected = True
+    while True:
+      try:
+        reading = ser.readline().decode()
+        handle_data(reading)
+        time.sleep(1)
+      except Exception as e:
+        print("error, reconnecting: " + str(e))
+        ser.close();
+        time.seep(1)
+        ser = serial.Serial(port, 9600, timeout=0)
 
 # route / to index
 @app.route('/')
@@ -68,9 +72,17 @@ def static_proxy(path):
 #     emit('my response', {'data': message['data']}, broadcast=True)
 #
 @socketio.on('connect', namespace='/stream')
-def test_connect():
+def connect():
     print('Cient connect')
+    # send the history
     emit('my response', {'data': 'Connected'})
+    
+@socketio.on('refresh', namespace='/stream')
+def refresh(message):
+    print('Client refresh: ' + str(list(values)))
+    # send the history
+    emit('refresh data', {'data': list(values)})
+
 #
 # @socketio.on('disconnect', namespace='/stream')
 # def test_disconnect():
