@@ -88,6 +88,7 @@ def refresh(message):
   # send the history
   for v in list(values):
     emit('my response', {'data': v})
+    #time.sleep(0.05)
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):

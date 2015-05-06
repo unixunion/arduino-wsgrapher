@@ -27,7 +27,7 @@
   		dps.shift();
   	}
 
-  	chart.render();
+  	//chart.render();
   
 };
   
@@ -43,6 +43,8 @@
 				dataPoints: dps 
 			}]
 		});
+    
+    window.setInterval(chart.render, 100);
 
 	}
 	</script>
