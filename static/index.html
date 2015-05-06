@@ -3,48 +3,142 @@
 
 <head>
 	<script type="text/javascript">
-  var dps = []; // dataPoints
-	var xVal = 0;
-	var yVal = 100;	
-	var dataLength = 500; // number of dataPoints visible at any point
-  var chart;
+  // refresh rate of all charts
+  var refresh_rate = 20;
   
   
-  var updateChart = function(x) {
-    var yVal = Math.round( x );
-
-  	dps.push({
-  		x: xVal,
-  		y: yVal
+  // chart1 contains two Y values
+  var chart1;
+  var chart1_dps1 = [];
+  var chart1_dps2 = [];
+  var chart1_xVal = 0;
+  var chart1_yVal1 = 100;
+  var chart1_yVal2 = 100;
+  var chart1_dataLength = 500;
+  
+  // chart1_update takes xy and y2 values
+  var chart1_update = function(y1, y2) {
+    var chart1_yVal1 = Math.round(y1);
+    var chart1_yVal2 = Math.round(y2);
+    
+  	chart1_dps1.push({
+  		x: chart1_xVal,
+  		y: chart1_yVal1
   	});
-  	xVal++;
+    
+  	chart1_dps2.push({
+  		x: chart1_xVal,
+  		y: chart1_yVal2
+  	});
+    
+    // move the x axis along
+  	chart1_xVal++;
   
-    //$('#log').append('<br>Chart #' + msg.data + ': ' + xVal + ' dps.length: ' + dps.length);
-    console.log('<br>Chart #' + yVal + ': ' + xVal + ' dps.length: ' + dps.length);
+    console.log('<br>Chart1 y1:' + chart1_yVal1 + ': ' + chart1_xVal + ' dps1.length: ' + chart1_dps1.length);
+    console.log('<br>Chart1 y2:' + chart1_yVal2 + ': ' + chart1_xVal + ' dps2.length: ' + chart1_dps2.length);
 
-  	if (dps.length > dataLength)
+    // shift both if one is over
+  	if (chart1_dps1.length > chart1_dataLength)
   	{
-  		dps.shift();
+  		chart1_dps1.shift();
+      chart1_dps2.shift();
   	}
+    
+  };
+  
+  
+  // second chart
+  var chart2;
+  var chart2_dps;
+  
+  
+  // 3rd chart just has a single Y value
+  var chart3;
+  var chart3_dps = []; // dataPoints
+	var chart3_xVal = 0;
+	var chart3_yVal = 100;	
+	var chart3_dataLength = 500; // number of dataPoints visible at any point
+  
+  var chart3_update = function(y) {
+    var chart3_yVal = Math.round( y );
+  	chart3_dps.push({
+  		x: chart3_xVal,
+  		y: chart3_yVal
+  	});
+  	chart3_xVal++;
+  
+    console.log('<br>Chart3 #' + chart3_yVal + ': ' + chart3_xVal + ' dps.length: ' + chart3_dps.length);
 
-  	//chart.render();
+  	if (chart3_dps.length > chart3_dataLength)
+  	{
+  		chart3_dps.shift();
+  	}
+  };
+
   
-};
+  // common method to update all charts on the page
+  var chart_update = function(y) {
+    chart1_update(y[0], y[1]);
+  	chart3_update(y[2]);
+  };
   
   
+  // onload, setup the charts
 	window.onload = function () {
+    
+    // chart1 takes two DPS
+    chart1 = new CanvasJS.Chart("chartContainer1",
+  	{
+  		animationEnabled: true,
+  		title:{
+  			text: "Volt"
+  		},
+  		axisY: {
+  		  minimum: 0,
+        maximun: 3.7,
+  		},
+      data: [
+  		{
+  			type: "spline", //change type to bar, line, area, pie, etc
+  			showInLegend: true,        
+  			dataPoints: chart1_dps1
+  			},
+        {
+  			type: "spline",
+  			showInLegend: true,        
+  			dataPoints: chart1_dps2
+          
+        }
+  		],
+  		legend: {
+  			cursor: "pointer",
+  			itemclick: function (e) {
+  				if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
+  					e.dataSeries.visible = false;
+  				} else {
+  					e.dataSeries.visible = true;
+  			}
+  			}
+  		}
+  	});
+    
+    // init the refresh
+    window.setInterval(chart1.render, refresh_rate);
 
-		chart = new CanvasJS.Chart("chartContainer",{
+
+    // the simpler chart
+		chart3 = new CanvasJS.Chart("chartContainer3",
+    {
 			title :{
 				text: "u/g cm3"
 			},			
 			data: [{
 				type: "line",
-				dataPoints: dps 
+				dataPoints: chart3_dps 
 			}]
 		});
     
-    window.setInterval(chart.render, 100);
+    window.setInterval(chart3.render, refresh_rate);
 
 	}
 	</script>
@@ -54,29 +148,21 @@
   
   <script type="text/javascript" charset="utf-8">
           $(document).ready(function(){
-              namespace = '/stream'; // change to an empty string to use the global namespace
-              // the socket.io documentation recommends sending an explicit package upon connection
-              // this is specially important when using the global namespace
+              namespace = '/stream';
+              
               var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+              
+              // on connect, request a refresh of all data
               socket.on('connect', function() {
-                  socket.emit('refresh', {data: 'hit me'});
+                console.log("connect event")
+                socket.emit('refresh', {data: 'hit me'});
               });
               
-              socket.on('refresh data', function(msg) {
-                console.log('refreshing data');
-                
-                var index;
-                for	(index = 0; index < msg.data.length; index++) {
-                    updateChart(msg.data[index]);
-                }
-              });
               
-              // event handler for server sent data
-              // the data is displayed in the "Received" section of the page
-              socket.on('my response', function(msg) {
-                  //$('#log').append('<br>Received #' + msg.count + ': ' + msg.data);
+              // data handler for chart data, chart data is a list [v1, v2, v3]
+              socket.on('chart data', function(msg) {
                   console.log('Received #' + msg.count + ': ' + msg.data);
-                  updateChart(msg.data);
+                  chart_update(msg.data);
                   
               });
           });
@@ -84,7 +170,9 @@
   
 </head>
 <body>
-	<div id="chartContainer" style="height: 300px; width:100%;">
+	<div id="chartContainer1" style="height: 300px; width:100%;">
+	</div>
+	<div id="chartContainer3" style="height: 300px; width:100%;">
 	</div>
   <div id="log"></div>
 </body>

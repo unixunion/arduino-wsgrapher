@@ -36,8 +36,11 @@ def handle_data(data):
   m = re.match("^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);", recv_data)
   try:
     print m.group(1) + " " + m.group(2) + " " + m.group(3)
-    values.append(m.group(3))
-    broadcast_value(m.group(3))
+    values.append([m.group(1), m.group(2), m.group(3)])
+    
+    # broadcast all three values as a list
+    broadcast_value([m.group(1), m.group(2), m.group(3)])
+    
   except Exception as e:
     pass
     time.sleep(0.1)
@@ -78,7 +81,7 @@ def static_proxy(path):
 @socketio.on('connect', namespace='/stream')
 def connect():
   print('Cient connect')
-  emit('my response', {'data': 'Connected'})
+  emit('connect-accept', {'data': 'Connected'})
 
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
@@ -87,12 +90,11 @@ def refresh(message):
 
   # send the history
   for v in list(values):
-    emit('my response', {'data': v})
-    #time.sleep(0.05)
+    emit('chart data', {'data': v})
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):
-  socketio.emit('my response', {'data': val}, namespace='/stream')
+  socketio.emit("chart data", {'data': val}, namespace='/stream')
 
 if __name__ == "__main__":
   thread = threading.Thread(target=read_from_port, args=(ser,connected))
