@@ -22,9 +22,9 @@ socketio = SocketIO(app)
 connected = False
 port = '/dev/tty.usbmodem14211'
 baud = 9600
-ser = serial.Serial(port, 9600, timeout=0)
+ser = serial.Serial(port, baud, timeout=0)
 
-# save some history
+# save some history for client refreshes
 values = collections.deque(maxlen=500)
 
 def handle_data(data):
@@ -61,16 +61,7 @@ def index():
 @app.route('/<path:path>')
 def static_proxy(path):
     return app.send_static_file("static/" + path)
-    
-# @socketio.on('my event', namespace='/stream')
-# def test_message(message):
-#     print("sending: " + str(q.get()))
-#     emit('my response', {'data': q.get()})
-#
-# @socketio.on('my broadcast event', namespace='/stream')
-# def test_message(message):
-#     emit('my response', {'data': message['data']}, broadcast=True)
-#
+
 @socketio.on('connect', namespace='/stream')
 def connect():
     print('Cient connect')
@@ -82,11 +73,6 @@ def refresh(message):
     print('Client refresh: ' + str(list(values)))
     # send the history
     emit('refresh data', {'data': list(values)})
-
-#
-# @socketio.on('disconnect', namespace='/stream')
-# def test_disconnect():
-#     print('Client disconnected')
 
 # send value changes
 def broadcast_value(val):
