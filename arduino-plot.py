@@ -27,18 +27,29 @@ ser = serial.Serial(port, baud, timeout=0)
 # save some history for client refreshes
 values = collections.deque(maxlen=500)
 
+
 def handle_data(data):
-    recv_data = data
-    m = re.match("^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);", recv_data)
-    try:
-        print m.group(1) + " " + m.group(2) + " " + m.group(3)
-        values.append(m.group(3))
-        broadcast_value(m.group(3))
-    except Exception as e:
-        pass
-        time.sleep(0.1)
-    
+  '''
+  called by read_from_port
+  '''
+  recv_data = data
+  m = re.match("^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);", recv_data)
+  try:
+    print m.group(1) + " " + m.group(2) + " " + m.group(3)
+    values.append(m.group(3))
+    broadcast_value(m.group(3))
+  except Exception as e:
+    pass
+    time.sleep(0.1)
+
+
 def read_from_port(ser, connected=False):
+  '''
+  function which will forever read a serial port, and sleep a little to allow bytes to stack up on the port.
+  this is not ideal, but since there is no bytesAvailable() method, this needs to be like this for now. 
+
+  call handle_data when its got some bytes to pass on.
+  '''
   while not connected:
     connected = True
     while True:
@@ -52,40 +63,41 @@ def read_from_port(ser, connected=False):
         time.seep(1)
         ser = serial.Serial(port, 9600, timeout=0)
 
+
 # route / to index
 @app.route('/')
 def index():
-    return app.send_static_file('index.html')
+  return app.send_static_file('index.html')
 
 # serve the static content
 @app.route('/<path:path>')
 def static_proxy(path):
-    return app.send_static_file("static/" + path)
+  return app.send_static_file("static/" + path)
 
+# socket.io connect event
 @socketio.on('connect', namespace='/stream')
 def connect():
-    print('Cient connect')
-    # send the history
-    emit('my response', {'data': 'Connected'})
-    
+  print('Cient connect')
+  emit('my response', {'data': 'Connected'})
+
+# socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
-    print('Client refresh requested')
+  print('Client refresh requested')
 
-    # send the history
-    for v in list(values):
-      print("emitting")
-      emit('my response', {'data': v})
-      
+  # send the history
+  for v in list(values):
+    print("emitting")
+    emit('my response', {'data': v})
 
-# send value changes
+# send a value change from outside the Flask context.
 def broadcast_value(val):
-    socketio.emit('my response', {'data': val}, namespace='/stream')
-    
+  socketio.emit('my response', {'data': val}, namespace='/stream')
+
 if __name__ == "__main__":
-    thread = threading.Thread(target=read_from_port, args=(ser,connected))
-    thread.start()
-    socketio.run(app)
+  thread = threading.Thread(target=read_from_port, args=(ser,connected))
+  thread.start()
+  socketio.run(app)
 
 
 
