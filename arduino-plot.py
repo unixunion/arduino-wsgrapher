@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 
 '''
-http://blog.miguelgrinberg.com/post/easy-websockets-with-flask-and-gevent
-
+Reads values from a arduino on a serial port, then uses websocket to update the HTML client graphs.
 '''
 
 import serial
 import re
 import threading
 import time
-import Queue
 
-from flask import Flask, request, redirect, url_for, send_from_directory
+from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
 
 # app definition
@@ -19,16 +17,14 @@ app = Flask(__name__, static_url_path='')
 app.config['SERVER_NAME'] = "localhost:8080"
 socketio = SocketIO(app)
 
-# cars
+# vars
 connected = False
 port = '/dev/tty.usbmodem14211'
 baud = 9600
 ser = serial.Serial(port, 9600, timeout=0)
-recv_data = ""
 
 def handle_data(data):
     recv_data = data
-    #print("recv_data: " + recv_data)
     m = re.match("^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);", recv_data)
     try:
         print m.group(1) + " " + m.group(2) + " " + m.group(3)
@@ -44,7 +40,6 @@ def read_from_port(ser, connected=False):
         while True:
             try:
                 reading = ser.readline().decode()
-                #print("read: " + reading)
                 handle_data(reading)
                 time.sleep(1)
             except Exception as e:
@@ -53,13 +48,15 @@ def read_from_port(ser, connected=False):
                 time.seep(1)
                 ser = serial.Serial(port, 9600, timeout=0)
 
+# route / to index
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+# serve the static content
 @app.route('/<path:path>')
 def static_proxy(path):
     return app.send_static_file("static/" + path)
-    
-@app.route('/')
-def root():
-    return app.send_static_file('static/index.html')
     
 # @socketio.on('my event', namespace='/stream')
 # def test_message(message):
