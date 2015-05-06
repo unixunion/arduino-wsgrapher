@@ -70,15 +70,17 @@ def connect():
     
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
-    print('Client refresh: ' + str(list(values)))
+    print('Client refresh requested')
+
     # send the history
-    emit('refresh data', {'data': list(values)})
+    for v in list(values):
+      print("emitting")
+      emit('my response', {'data': v})
+      
 
 # send value changes
 def broadcast_value(val):
-    print("broadcasting: " + str(val))
     socketio.emit('my response', {'data': val}, namespace='/stream')
-    print("sent")
     
 if __name__ == "__main__":
     thread = threading.Thread(target=read_from_port, args=(ser,connected))
