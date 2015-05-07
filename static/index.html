@@ -5,6 +5,7 @@
 	<script type="text/javascript">
   // refresh rate of all charts
   var refresh_rate = 20;
+  var dataLength = 120;
   
   
   // chart1 contains two Y values
@@ -14,10 +15,11 @@
   var chart1_xVal = 0;
   var chart1_yVal1 = 100;
   var chart1_yVal2 = 100;
-  var chart1_dataLength = 500;
+  var chart1_dataLength = dataLength;
   
   // chart1_update takes xy and y2 values
   var chart1_update = function(y1, y2) {
+	// floats need to be multiplied by 100 to bump 2 decimals up and then use number formatting on chart to fix.
     var chart1_yVal1 = Math.round(y1);
     var chart1_yVal2 = Math.round(y2);
     
@@ -40,7 +42,7 @@
     // shift both if one is over
   	if (chart1_dps1.length > chart1_dataLength)
   	{
-  		chart1_dps1.shift();
+  	  chart1_dps1.shift();
       chart1_dps2.shift();
   	}
     
@@ -57,7 +59,7 @@
   var chart3_dps = []; // dataPoints
 	var chart3_xVal = 0;
 	var chart3_yVal = 100;	
-	var chart3_dataLength = 500; // number of dataPoints visible at any point
+	var chart3_dataLength = dataLength; // number of dataPoints visible at any point
   
   var chart3_update = function(y) {
     var chart3_yVal = Math.round( y );
@@ -93,16 +95,15 @@
   		title:{
   			text: "Volt"
   		},
-  		axisY: {
-  		  minimum: 0,
-        maximun: 3.7,
-  		},
+		// axisY: {
+		//   		  valueFormatString: "#,#0",
+		//   		},
       data: [
-  		{
-  			type: "spline", //change type to bar, line, area, pie, etc
-  			showInLegend: true,        
-  			dataPoints: chart1_dps1
-  			},
+  		// {
+  		// 	type: "spline", //change type to bar, line, area, pie, etc
+  		// 	showInLegend: true,        
+  		// 	dataPoints: chart1_dps1
+  		// },
         {
   			type: "spline",
   			showInLegend: true,        
@@ -131,9 +132,9 @@
     {
 			title :{
 				text: "u/g cm3"
-			},			
+			},	
 			data: [{
-				type: "line",
+				type: "splineArea",
 				dataPoints: chart3_dps 
 			}]
 		});

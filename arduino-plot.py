@@ -20,7 +20,7 @@ socketio = SocketIO(app)
 
 # vars
 connected = False
-port = '/dev/tty.usbmodem14211'
+port = '/dev/tty.usbmodem621'
 baud = 9600
 ser = serial.Serial(port, baud, timeout=0)
 
