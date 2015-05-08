@@ -3,178 +3,88 @@
 
 <head>
 	<script type="text/javascript">
+  
+  // list of charts
+  var charts = [];
+  // counter
+  var chartCount = 0;
+  
   // refresh rate of all charts
   var refresh_rate = 20;
+  // max graph and cache length in samples
   var dataLength = 120;
-  
-  
-  // chart1 contains two Y values
-  var chart1;
-  var chart1_dps1 = [];
-  var chart1_dps2 = [];
-  var chart1_xVal = 0;
-  var chart1_yVal1 = 100;
-  var chart1_yVal2 = 100;
-  var chart1_dataLength = dataLength;
-  
-  // chart1_update takes xy and y2 values
-  var chart1_update = function(y1, y2) {
-	// floats need to be multiplied by 100 to bump 2 decimals up and then use number formatting on chart to fix.
-    var chart1_yVal1 = Math.round(y1);
-    var chart1_yVal2 = Math.round(y2);
-    
-  	chart1_dps1.push({
-  		x: chart1_xVal,
-  		y: chart1_yVal1
-  	});
-    
-  	chart1_dps2.push({
-  		x: chart1_xVal,
-  		y: chart1_yVal2
-  	});
-    
-    // move the x axis along
-  	chart1_xVal++;
-  
-    console.log('<br>Chart1 y1:' + chart1_yVal1 + ': ' + chart1_xVal + ' dps1.length: ' + chart1_dps1.length);
-    console.log('<br>Chart1 y2:' + chart1_yVal2 + ': ' + chart1_xVal + ' dps2.length: ' + chart1_dps2.length);
-
-    // shift both if one is over
-  	if (chart1_dps1.length > chart1_dataLength)
-  	{
-  	  chart1_dps1.shift();
-      chart1_dps2.shift();
-  	}
-    
-  };
-  
-  
-  // second chart
-  var chart2;
-  var chart2_dps;
-  
-  
-  // 3rd chart just has a single Y value
-  var chart3;
-  var chart3_dps = []; // dataPoints
-	var chart3_xVal = 0;
-	var chart3_yVal = 100;	
-	var chart3_dataLength = dataLength; // number of dataPoints visible at any point
-  
-  var chart3_update = function(y) {
-    var chart3_yVal = Math.round( y );
-  	chart3_dps.push({
-  		x: chart3_xVal,
-  		y: chart3_yVal
-  	});
-  	chart3_xVal++;
-  
-    console.log('<br>Chart3 #' + chart3_yVal + ': ' + chart3_xVal + ' dps.length: ' + chart3_dps.length);
-
-  	if (chart3_dps.length > chart3_dataLength)
-  	{
-  		chart3_dps.shift();
-  	}
-  };
-
   
   // common method to update all charts on the page
   var chart_update = function(y) {
-    chart1_update(y[0], y[1]);
-  	chart3_update(y[2]);
+    var i = 0;
+    // we lock y[i] and c together, since we always want to update the same number of charts, with the same number of values ( for now )
+    // this gets tricky for multi value graphs
+    for (var c in charts) {
+      charts[i].update(y[i]);
+      i++;
+    };
   };
   
   
-  // onload, setup the charts
 	window.onload = function () {
-    
-    // chart1 takes two DPS
-    chart1 = new CanvasJS.Chart("chartContainer1",
-  	{
-  		animationEnabled: true,
-  		title:{
-  			text: "Volt"
-  		},
-		// axisY: {
-		//   		  valueFormatString: "#,#0",
-		//   		},
-      data: [
-  		// {
-  		// 	type: "spline", //change type to bar, line, area, pie, etc
-  		// 	showInLegend: true,        
-  		// 	dataPoints: chart1_dps1
-  		// },
-        {
-  			type: "spline",
-  			showInLegend: true,        
-  			dataPoints: chart1_dps2
-          
-        }
-  		],
-  		legend: {
-  			cursor: "pointer",
-  			itemclick: function (e) {
-  				if (typeof(e.dataSeries.visible) === "undefined" || e.dataSeries.visible) {
-  					e.dataSeries.visible = false;
-  				} else {
-  					e.dataSeries.visible = true;
-  			}
-  			}
-  		}
-  	});
-    
-    // init the refresh
-    window.setInterval(chart1.render, refresh_rate);
-
-
-    // the simpler chart
-		chart3 = new CanvasJS.Chart("chartContainer3",
-    {
-			title :{
-				text: "u/g cm3"
-			},	
-			data: [{
-				type: "splineArea",
-				dataPoints: chart3_dps 
-			}]
-		});
-    
-    window.setInterval(chart3.render, refresh_rate);
-
-	}
+    // nothing here
+  };
+  
 	</script>
   <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
 	<script type="text/javascript" src="/js/canvasjs.min.js"></script>
-  
+  <script type="text/javascript" src="/js/zchart.js"></script>
   <script type="text/javascript" charset="utf-8">
           $(document).ready(function(){
               namespace = '/stream';
               
               var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
               
-              // on connect, request a refresh of all data
+              // on connect, request a config
               socket.on('connect', function() {
                 console.log("connect event")
-                socket.emit('refresh', {data: 'hit me'});
+                
+                // clear the scene
+                var node = document.getElementById('charts');
+                while (node.hasChildNodes()) {
+                    node.removeChild(node.lastChild);
+                }
+                charts = [];
+                chartCount = 0;
+                
+                // request config
+                socket.emit('chart config', {data: 'hit me'});
               });
               
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
-                  console.log('Received #' + msg.count + ': ' + msg.data);
+                  //console.log('Received #' + msg.count + ': ' + msg.data);
                   chart_update(msg.data);
-                  
               });
+              
+              // data handler for chart config
+              socket.on('chart config', function(msg) {
+                  console.log('chart config event: ' + msg.data);
+                  var i = 1;
+                  while (i<=msg.data)
+                  {
+                    charts.push(new ZChart("value " + i, dataLength));
+                    i++;
+                  }
+                  // request graph data refresh if server supports it.
+                  socket.emit('refresh', {data: 'hit me'});
+              });
+              
           });
       </script>
   
 </head>
 <body>
-	<div id="chartContainer1" style="height: 300px; width:100%;">
-	</div>
-	<div id="chartContainer3" style="height: 300px; width:100%;">
-	</div>
-  <div id="log"></div>
+  <div id="charts">
+    <div id="log"></div>
+  </div>
+  
 </body>
 </html>

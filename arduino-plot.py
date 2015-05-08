@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 
 '''
-Reads values from a arduino on a serial port, then uses websocket to update the HTML client graphs.
+Reads values from a file or serial port, then uses websocket to update the HTML client graphs.
 '''
+import logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger = logging.getLogger("ardugrapher")
 
 import sys
 import os
@@ -15,41 +18,32 @@ import collections
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
 from optparse import OptionParser
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 # app definition
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
-
-
 
 # vars
 connected = False
 default_port = '/dev/tty.usbmodem621'
 default_baud = 9600
 default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);'
-
+# other regex examples: '^([0-9]+) ([0-9]+) ([0-9]+)'
 
 # save some history for client refreshes
 values = collections.deque(maxlen=500)
 
 
-def handle_data(data):
+class FileHandler(FileSystemEventHandler):
   '''
-  called by read_from_port
+  the handler for file change events when monitoring a file
   '''
-  recv_data = data
-  m = re.match(options.regex, recv_data)
-  try:
-    print m.group(1) + " " + m.group(2) + " " + m.group(3)
-    values.append([m.group(1), m.group(2), m.group(3)])
-    
-    # broadcast all three values as a list
-    broadcast_value([m.group(1), m.group(2), m.group(3)])
-    
-  except Exception as e:
-    pass
-    time.sleep(0.1)
-
+  def on_modified(self, event):
+      logger.debug("file change event received")
+      read_file(options.file, options.buffer_size)
+      
 
 def read_from_port(serial_port, connected=False):
   '''
@@ -64,7 +58,7 @@ def read_from_port(serial_port, connected=False):
       try:
         reading = serial_port.readline().decode()
         handle_data(reading)
-        time.sleep(1)
+        time.sleep(options.wait)
       except Exception as e:
         print("error, reconnecting: " + str(e))
         serial_port.close();
@@ -72,24 +66,73 @@ def read_from_port(serial_port, connected=False):
         serial_port = serial.Serial(port, 9600, timeout=0)
 
 
-def read_from_file(filename, bufsize):
-  fiter = 0
-  fsize = os.stat(filename).st_size
-  lines = 1
+def handle_data(data):
+  '''
+  called by read_from_port / read_from_file, matches data with a regex, calls broadcase_values with a list of values[int,int,...]
+  '''
+  recv_data = data
+  logger.debug("handling data: " + recv_data)
+  m = re.match(options.regex, recv_data)
   
-  with open(filename) as f:
-      if bufsize > fsize:
-          bufsize = fsize-1
-      data = []
+  try:
+    # extract the number of groupings from the regex
+    num_groups = len(m.groups())
+    logger.debug("groups: " + str(num_groups))
+    
+    # results holder
+    results = []
+    
+    # loop over groups and make a list of the findings
+    x = 1;
+    while x <= num_groups:
+      logger.debug("group: " + str(x))
+      logger.info("group contents " + str(m.group(x)))
+      results.append(int(m.group(x)))
+      x=x+1
+    
+    # save results in values ( for browser refresh )
+    values.append(results)
+    
+    # broadcast results
+    logger.info("broadcasting: " + str(results))
+    broadcast_value(results)
+    
+  except Exception as e:
+    logger.debug("exception processing data " + str(e))
+    time.sleep(0.1)
+
+
+
+def monitor_file(filename, bufsize):
+  '''
+  monitors a directory for file changes, unfortunately we cannot monitor the file specifically,
+  therefore, make sure your log files are in their own directory.
+  '''
+  event_handler = FileHandler()
+  observer = Observer()
+  observer.schedule(event_handler, path=os.path.dirname(os.path.realpath(filename)), recursive=False)
+
+  observer.start()
+  try:
       while True:
-          fiter +=1
-          f.seek(fsize-bufsize*fsize)
-          data.extend(f.readlines())
-          if len(data) >= lines or f.tell() == 0:
-              handle_data(''.join(data[-lines:]))
-              break
+          time.sleep(options.wait)
+  except KeyboardInterrupt:
+      observer.stop()
+  observer.join()
+  
 
-
+def read_file(filename, bufsize):
+  '''
+  seeks the end-of-file less the bufsize, then grabs the last bunch of lines and passes
+  the very last one to handle_data.
+  '''
+  f = open(filename)
+  f.seek(os.stat(filename).st_size-bufsize)
+  lines = f.readlines()
+  f.close()
+  logger.debug("lines: " + str(lines))
+  logger.debug("sending last element: " + lines[-1])
+  handle_data(lines[-1])
 
 # route / to index
 @app.route('/')
@@ -108,10 +151,16 @@ def connect():
   emit('connect-accept', {'data': 'Connected'})
 
 # socket.io refresh request
+@socketio.on('chart config', namespace='/stream')
+def refresh(message):
+  print('Client requests chart config')
+  # emit the number of graph value sets, this could emit more details canvasJS configs
+  emit('chart config', {'data': len(values.pop())})
+
+# socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
   print('Client refresh requested')
-
   # send the history
   for v in list(values):
     emit('chart data', {'data': v})
@@ -154,14 +203,20 @@ if __name__ == "__main__":
                     
   parser.add_option("-B", "--buffer", 
                     dest="buffer_size", 
-                    default=8192,
+                    default=64,
+                    type="int",
                     help="buffer size")
   
   parser.add_option("-r", "--regex", 
                     dest="regex", 
                     default=default_regex,
                     help="regex which extracts groups of values you want to send to html client")
-  
+                    
+  parser.add_option("-w", "--wait", 
+                    dest="wait", 
+                    default=0.1,
+                    type="int",
+                    help="seconds to wait between polling handling data ( FILE / SERIAL )") 
 
   (options, args) = parser.parse_args()
   
@@ -172,7 +227,7 @@ if __name__ == "__main__":
     serial_port = serial.Serial(options.file, options.baud, timeout=0)
     thread = threading.Thread(target=read_from_port, args=(serial_port,connected))
   else:
-    thread = threading.Thread(target=read_from_file, args=(options.file, options.buffer_size))
+    thread = threading.Thread(target=monitor_file, args=(options.file, options.buffer_size))
     
   thread.start()
   socketio.run(app)
