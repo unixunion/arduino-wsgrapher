@@ -12,20 +12,12 @@
 	<script type="text/javascript">
   
   // list of charts
-  var charts = [];
-  
-  // counter
-  var chartCount = 0;
-  
-  var data_lock = false;
-  
-  // refresh rate of all charts
-  var refresh_rate = 1000 ;
-  // max graph and cache length in samples
-  var dataLength = 120;
-  
-  // holder for refresh_history
-  var refresh_history; 
+  var charts = []; // chart list
+  var chartCount = 0; // chart counter
+  var data_lock = false; // used to lock chart data while refreshing
+  var refresh_rate = 1000; // render rate of charts
+  var dataLength = 120; // default graph length
+  var refresh_history; // pointer for refresh_history
   
   // set the history length to n elements
   var set_history = function(d)
@@ -40,7 +32,7 @@
     dataLength = d;
   }
   
-  // common method to update all charts on the page
+  // common method to clear all charts data points
   var chart_clear = function() {
     app_status("Clearing Charts");
     var i = 0;
@@ -62,11 +54,9 @@
     };
   };
   
+  // notify user of events in UI
   var app_status = function(msg) {
-    // notify user
-    // var ni = document.getElementById('status');
-    // ni.innerHTML = msg;
-    Materialize.toast(msg, 4000)
+    Materialize.toast(msg, 3000)
   };
   
 	window.onload = function () {
@@ -101,18 +91,19 @@
               refresh_history = function()
               {
                 // app_status("Disabling Realtime Data");
-                console.log("calling chart_clear");
+                console.log("locking and calling chart_clear");
                 data_lock = true; // lock to prevent timeline contamination during refresh
                 chart_clear();
                 
-                console.log("sending socket request for refresh");
-                app_status("Refresh Timeline");
+                console.log("request for refresh");
+                app_status("Requesting Refresh");
                 socket.emit('refresh', {data: 'hit me'});
               }
               
               // connect event
               socket.on('connect', function() {
                 console.log("connect")
+                app_status("Socket.IO Connect");
                 
                 // delete all graphs, this could only fire if config changed. TODO FIXME
                 var node = document.getElementById('charts');
@@ -123,15 +114,13 @@
                 charts = [];
                 chartCount = 0;
                 
-                // notify user
-                app_status('Connecting...');
-                
                 // request config
                 console.log("request chart config");
                 socket.emit('chart config', {data: 'hit me'});
               });
               
               
+              // the server emits a config error if chart information is unknown
               socket.on('chart config error', function() {
                 console.log('chart config error');
                 app_status('Chart Config Error...');
@@ -140,17 +129,14 @@
                 socket.emit('chart config', {data: 'hit me'});
               });
               
-              socket.on('reconnect', function(msg) { console.log('reconnect')});
-              socket.on('connecting', function(msg) { console.log('connecting')});
+              
+              // on reconnecting event, we set the reconnectionDelay to a non-exponential useless value.
               socket.on('reconnecting', function(msg) { 
                 app_status('Reconnecting...');
                 socket.socket.reconnectionDelay /= 2
                 console.log('reconnecting ' + msg)
               });
-              socket.on('connect_failed', function(msg) { console.log('connect_failed')});
-              socket.on('reconnect_failed', function(msg) { console.log('reconnect_failed')}); 
-              socket.on('close', function(msg) { console.log('close')});
-              socket.on('disconnect', function(msg) { console.log('disconnect')});
+              
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
@@ -167,16 +153,15 @@
               
               // the chart refresh complete event turns off the data_lock
               socket.on('chart refresh complete', function(msg) {
-                // app_status("Enabling Realtime Data");
+                app_status("Refresh Complete");
                 console.log("refresh complete, unlocking data_lock");
                 data_lock = false;
               });
               
               
-              // data handler for chart config
               /*
               
-              chart config data:
+              chart config handler
               
               { 
                 number: 4, // number of graphs to create
@@ -203,10 +188,17 @@
                     }
                     i++;
                   }
-                  // request graph data refresh if server supports it.
-                  // app_status('Requesting Data Refresh...');
                   socket.emit('refresh', {data: 'hit me'});
               });
+              
+              
+              // some method hooks for future
+              socket.on('reconnect', function(msg) { app_status("Socket.IO Reconnect")});
+              socket.on('connecting', function(msg) { app_status("Socket.IO Connecting")});
+              socket.on('connect_failed', function(msg) { app_status("Socket.IO Connect Failed")});
+              socket.on('reconnect_failed', function(msg) { app_status("Socket.IO Reconnect Failed")}); 
+              socket.on('close', function(msg) { app_status("Socket.IO Close")});
+              socket.on('disconnect', function(msg) { app_status("Socket.IO Disconnect")});
               
           });
       </script>

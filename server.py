@@ -36,16 +36,15 @@ logger = logging.getLogger("server")
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
 
-# vars
-connected = False
+# defaults
 default_port = '/dev/tty.usbmodem'
 default_baud = 9600
 default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);'
 # other regex examples: '^([0-9]+) ([0-9]+) ([0-9]+)'
 
-# save some history for client refreshes
+# internals
+connected = False
 values = collections.deque(maxlen=500)
-
 realtime = True
 
 class FileHandler(FileSystemEventHandler):
@@ -189,13 +188,14 @@ def refresh(message):
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
   logger.info('Client refresh requested')
-  # send the history
+  # shutdown the realtime events to prevent timeline contamination
   realtime = False
   for v in list(values):
     emit('chart refresh data', {'data': v})
   logger.info("done, unlocking and sending complete event")
   realtime = True
   emit('chart refresh complete', {'data': 'done!'})
+
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):
