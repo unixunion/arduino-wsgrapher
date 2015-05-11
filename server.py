@@ -22,6 +22,7 @@ import serial
 import re
 import threading
 import time
+import datetime
 import collections
 import json
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
@@ -30,7 +31,7 @@ from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger("server")
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
@@ -45,6 +46,7 @@ default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\
 # save some history for client refreshes
 values = collections.deque(maxlen=500)
 
+realtime = True
 
 class FileHandler(FileSystemEventHandler):
   '''
@@ -94,19 +96,23 @@ def handle_data(data):
     # results holder
     results = []
     
+    # start with a date in the results as 1st argument
+    results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S %Z%z'))
+    
     # loop over groups and make a list of the findings
     x = 1;
     while x <= num_groups:
       logger.debug("group: " + str(x))
-      logger.info("group contents " + str(m.group(x)))
+      logger.debug("group contents " + str(m.group(x)))
       results.append(m.group(x))
+      #  datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S %Z%z')
       x=x+1
     
     # save results in values ( for browser refresh )
     values.append(results)
     
     # broadcast results
-    logger.info("broadcasting: " + str(results))
+    logger.debug("broadcasting: " + str(results))
     broadcast_value(results)
     
   except Exception as e:
@@ -170,7 +176,8 @@ def connect():
 def refresh(message):
   try:
     logger.info('Client requests chart config')
-    emit('chart config', {'data': {'number': len(values.pop()), 'titles': options.names} })
+    # subtract 1 ( the time index ) from number of values
+    emit('chart config', {'data': {'number': len(values.pop())-1, 'titles': options.names} })
     
   except Exception, e:
     time.sleep(2)
@@ -183,13 +190,19 @@ def refresh(message):
 def refresh(message):
   logger.info('Client refresh requested')
   # send the history
+  realtime = False
   for v in list(values):
-    emit('chart data', {'data': v})
-
+    emit('chart refresh data', {'data': v})
+  logger.info("done, unlocking and sending complete event")
+  realtime = True
+  emit('chart refresh complete', {'data': 'done!'})
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):
-  socketio.emit("chart data", {'data': val}, namespace='/stream')
+  if realtime:
+    socketio.emit("chart data", {'data': val}, namespace='/stream')
+  else:
+    logger.warning("realtime event suspended");
 
 
 # list builder for optparse

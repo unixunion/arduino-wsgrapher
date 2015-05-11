@@ -15,21 +15,51 @@
   
   // list of charts
   var charts = [];
+  
   // counter
   var chartCount = 0;
+  
+  var data_lock = false;
   
   // refresh rate of all charts
   var refresh_rate = 20;
   // max graph and cache length in samples
-  var dataLength = 500;
+  var dataLength = 120;
+  
+  // holder for refresh_history
+  var refresh_history; 
+  
+  // set the history length to n elements
+  var set_history = function(d)
+  {
+    app_status("Set History to " + d);
+    console.log("setting dataLength to " + d);
+    if (d > dataLength) {
+      console.log("calling refresh history");
+      dataLength = d;
+      refresh_history();
+    }
+    dataLength = d;
+  }
+  
+  // common method to update all charts on the page
+  var chart_clear = function() {
+    app_status("Clearing Charts");
+    var i = 0;
+    for (var c in charts) {
+      charts[i].clear();
+      i++;
+    };
+  };
   
   // common method to update all charts on the page
   var chart_update = function(y) {
-    var i = 0;
+    var i = 1;
     // we lock y[i] and c together, since we always want to update the same number of charts, with the same number of values ( for now )
     // this gets tricky for multi value graphs
     for (var c in charts) {
-      charts[i].update(y[i]);
+      // push the time from y[0] and value from y[i]
+      charts[i-1].update(y[0], y[i]);
       i++;
     };
   };
@@ -43,7 +73,7 @@
   
 	window.onload = function () {
     console.log("window onload");
-    window.scrollTo(0,1);
+    app_status("Ready");
   };
   
 	</script>
@@ -63,21 +93,34 @@
           $(document).ready(function(){
               namespace = '/stream';
               
+              // just a socket.io
               var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {
                 'reconnection delay': 1000,
                 'max reconnection attempts': Infinity
               });
               
-              // on connect, request a config
+              // lock, clear, request-refresh
+              refresh_history = function()
+              {
+                app_status("Disabling Realtime Data");
+                console.log("calling chart_clear");
+                data_lock = true; // lock to prevent timeline contamination during refresh
+                chart_clear();
+                
+                console.log("sending socket request for refresh");
+                app_status("Request Timeline Refresh");
+                socket.emit('refresh', {data: 'hit me'});
+              }
+              
+              // connect event
               socket.on('connect', function() {
                 console.log("connect")
                 
-                // clear the scene
+                // delete all graphs, this could only fire if config changed. TODO FIXME
                 var node = document.getElementById('charts');
                 while (node.hasChildNodes()) {
                     node.removeChild(node.lastChild);
                 }
-                
                 // reset some vars
                 charts = [];
                 chartCount = 0;
@@ -113,9 +156,24 @@
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
-                  //console.log('Received #' + msg.count + ': ' + msg.data);
+                if (!data_lock)
+                {
+                  chart_update(msg.data);
+                }
+              });
+              
+              // separate handler for refresh data, do stop timeline sequence errors.
+              socket.on('chart refresh data', function(msg) {
                   chart_update(msg.data);
               });
+              
+              // the chart refresh complete event turns off the data_lock
+              socket.on('chart refresh complete', function(msg) {
+                app_status("Enabling Realtime Data");
+                console.log("refresh complete, unlocking data_lock");
+                data_lock = false;
+              });
+              
               
               // data handler for chart config
               /*
@@ -129,14 +187,19 @@
               
               */
               socket.on('chart config', function(msg) {
-                  console.log('chart config event: ' + msg.data);
+                  console.log('chart config event');
+                  console.log(msg.data);
                   app_status("Received Chart Config")
-                  var i = 1;
-                  while (i<=msg.data['number'])
+                  
+                  // start from position 2, since 1 is the time index
+                  var i = 2;
+                  while (i<=msg.data['number']+1)
                   {
-                    if ( typeof(msg.data['titles'][i-1]) != 'undefined' )
+                    console.log("Creating chart " + (i-1) );
+                    console.log(typeof(msg.data['titles'][i-1]));
+                    if ( typeof(msg.data['titles'][i-2]) != 'undefined' )
                     {
-                      charts.push(new ZChart(msg.data['titles'][i-1], dataLength));
+                      charts.push(new ZChart(msg.data['titles'][i-2], dataLength));
                     } else {
                       charts.push(new ZChart("value " + i, dataLength));
                     }
@@ -156,13 +219,17 @@
   <div class="navbar-fixed">
   <nav>
       <div class="nav-wrapper">
-        <a href="#" class="brand-logo right">Logo</a>
+        <a href="#" class="brand-logo right">Reapy</a>
         <ul id="nav-mobile" class="left hide-on-med-and-down">
           <li><a href="sass.html">Sass</a></li>
           <li><a href="components.html">Components</a></li>
           <li><a href="javascript.html">JavaScript</a></li>
         </ul>
       </div>
+      <ul>
+      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(600)">10m</a>
+      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(120)">2m</a>
+      </ul>
     </nav>
   </div>
 

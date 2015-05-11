@@ -1,10 +1,13 @@
-var ZChart = function(name, dataLength)
+// My ZChart Class
+
+var ZChart = function(name, dl)
 {
   this.name = name;
-  this.dataLength = dataLength;
+  this.dataLength = dl;
   this.dps = [];
   this.yVal = 0;
   this.xVal = 0;
+  this.self = this;
   
   // create a new DIV
   // console.log("creating div element for " + chartCount);
@@ -26,7 +29,7 @@ var ZChart = function(name, dataLength)
   {
 		title :{
 			text: this.name
-		},	
+		},
 		data: [{
 			type: "splineArea",
 			dataPoints: this.dps 
@@ -34,25 +37,51 @@ var ZChart = function(name, dataLength)
 	});
   
   
-  this.update = function(y1)
+  this.update = function(x1, y1)
   {
-    this.yVal=Math.round(y1)
+    //console.log("updating x1: " + x1 + " and y1: " + y1);
+    if (this.dataLength != dataLength )
+    {
+      console.log("dataLength changed, updating");
+      this.dataLength = dataLength;
+    }
+    
+    this.yVal=Math.round(y1);
+    this.xVal=x1;
   	this.dps.push({
   		y: this.yVal,
-  		x: this.xVal
+  		x: new Date(x1)
   	});
-    
-    // move time along
-    this.xVal++;
-    
+
   	if (this.dps.length > this.dataLength)
   	{
-  		this.dps.shift();
+		  this.dps.shift();
   	}
     
   }
 
-  window.setInterval(this.chart.render, refresh_rate);
+  this.clear = function()
+  {
+    // this.dps=[];
+//     this.dps.push(0,0);
+    while (this.dps.length > 0)
+    {   
+      this.dps.shift();
+    }
+  }
+
+
+  this.zrender = function()
+  {
+  	if (self.dps.length > self.dataLength)
+  	{
+		  self.dps.shift();
+  	}
+    self.chart.render();
+  }
+
+  var self = this;
+  window.setInterval(this.zrender, refresh_rate);
   
   chartCount++;
     
