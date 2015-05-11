@@ -27,7 +27,7 @@
   
   
 	window.onload = function () {
-    // nothing here
+    console.log("window onload");
   };
   
 	</script>
@@ -39,17 +39,22 @@
           $(document).ready(function(){
               namespace = '/stream';
               
-              var socket = io.connect('http://' + document.domain + ':' + location.port + namespace);
+              var socket = io.connect('http://' + document.domain + ':' + location.port + namespace, {
+                'reconnection delay': 1000,
+                'max reconnection attempts': Infinity
+              });
               
               // on connect, request a config
               socket.on('connect', function() {
-                console.log("connect event")
+                console.log("connect")
                 
                 // clear the scene
                 var node = document.getElementById('charts');
                 while (node.hasChildNodes()) {
                     node.removeChild(node.lastChild);
                 }
+                
+                // reset some vars
                 charts = [];
                 chartCount = 0;
                 
@@ -57,6 +62,16 @@
                 socket.emit('chart config', {data: 'hit me'});
               });
               
+              socket.on('reconnect', function(msg) { console.log('reconnect')});
+              socket.on('connecting', function(msg) { console.log('connecting')});
+              socket.on('reconnecting', function(msg) { 
+                socket.socket.reconnectionDelay /= 2
+                console.log('reconnecting ' + msg)
+              });
+              socket.on('connect_failed', function(msg) { console.log('connect_failed')});
+              socket.on('reconnect_failed', function(msg) { console.log('reconnect_failed')}); 
+              socket.on('close', function(msg) { console.log('close')});
+              socket.on('disconnect', function(msg) { console.log('disconnect')});
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {

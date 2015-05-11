@@ -7,7 +7,7 @@ var ZChart = function(name, dataLength)
   this.xVal = 0;
   
   // create a new DIV
-  console.log("creating div element for " + chartCount);
+  // console.log("creating div element for " + chartCount);
   var ni = document.getElementById('charts');
   var newdiv = document.createElement('div');
   var divIdName = 'zchartContainer' + chartCount;

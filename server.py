@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 
 '''
-Reads values from a file or serial port, then uses websocket to update the HTML client graphs.
+Reads values from a file or serial port, then uses websocket to update the HTML client graph in real-time
+
+Examples:
+
+# a log file with 3 numbers separated by space
+./server.py  -F -o console.log -r '^([0-9]+) ([0-9]+) ([0-9]+)'
 '''
-import logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
-logger = logging.getLogger("ardugrapher")
 
 import sys
 import os
@@ -14,12 +16,15 @@ import re
 import threading
 import time
 import collections
-
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
 from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import logging
+
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger = logging.getLogger("server")
 
 # app definition
 app = Flask(__name__, static_url_path='')
@@ -38,7 +43,7 @@ values = collections.deque(maxlen=500)
 
 class FileHandler(FileSystemEventHandler):
   '''
-  the handler for file change events when monitoring a file
+  the handler for file change events when monitoring a file ( directory )
   '''
   def on_modified(self, event):
       logger.debug("file change event received")
@@ -48,9 +53,11 @@ class FileHandler(FileSystemEventHandler):
 def read_from_port(serial_port, connected=False):
   '''
   function which will forever read a serial port, and sleep a little to allow bytes to stack up on the port.
-  this is not ideal, but since there is no bytesAvailable() method, this needs to be like this for now. 
+  this is not ideal, but since there is no bytesAvailable() method, this needs to be like this for now.
 
   call handle_data when its got some bytes to pass on.
+  
+  this should run in its own thread
   '''
   while not connected:
     connected = True
@@ -68,7 +75,7 @@ def read_from_port(serial_port, connected=False):
 
 def handle_data(data):
   '''
-  called by read_from_port / read_from_file, matches data with a regex, calls broadcase_values with a list of values[int,int,...]
+  called by read_from_port / read_from_file, matches data groups via the regex, calls broadcase_values with a list of values[float,int,...]
   '''
   recv_data = data
   logger.debug("handling data: " + recv_data)
@@ -134,7 +141,8 @@ def read_file(filename, bufsize):
   logger.debug("sending last element: " + lines[-1])
   handle_data(lines[-1])
 
-# route / to index
+
+# serve index.html
 @app.route('/')
 def index():
   return app.send_static_file('index.html')
@@ -148,7 +156,7 @@ def static_proxy(path):
 @socketio.on('connect', namespace='/stream')
 def connect():
   print('Cient connect')
-  emit('connect-accept', {'data': 'Connected'})
+  emit('connect accept', {'data': 'Connected'})
 
 # socket.io refresh request
 @socketio.on('chart config', namespace='/stream')
