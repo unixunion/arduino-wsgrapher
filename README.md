@@ -17,7 +17,7 @@ The client operates as follows:
 * the HTML client is downloaded via HTTP GET
 * jquery, socket.io and canvas.js are included
 * ws connect to server
-* ws request graph config ( number of graphs )
+* ws request graph config ( number of graphs, titles )
 * ws request data history graphs
 * ws onmessage plot values for all graphs
 

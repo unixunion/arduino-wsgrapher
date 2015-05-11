@@ -91,10 +91,16 @@
               // data handler for chart config
               socket.on('chart config', function(msg) {
                   console.log('chart config event: ' + msg.data);
+                  console.log(msg.data['number']);
                   var i = 1;
-                  while (i<=msg.data)
+                  while (i<=msg.data['number'])
                   {
-                    charts.push(new ZChart("value " + i, dataLength));
+                    if ( typeof(msg.data['titles'][i-1]) != 'undefined' )
+                    {
+                      charts.push(new ZChart(msg.data['titles'][i-1], dataLength));
+                    } else {
+                      charts.push(new ZChart("value " + i, dataLength));
+                    }
                     i++;
                   }
                   // request graph data refresh if server supports it.

@@ -9,7 +9,7 @@ Examples:
 ./server.py  -F -o console.log -r '^([0-9]+) ([0-9]+) ([0-9]+)'
 
 # a serial port with 3 numbers extracted from a sentence
-./server.py -o /dev/tty.usbmodem1421 -w 1 -S -r '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);'
+./server.py -o /dev/tty.usbmodem1421 -w 1 -r '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);' -n raw,volt,dust
 
 '''
 
@@ -20,6 +20,7 @@ import re
 import threading
 import time
 import collections
+import json
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
 from optparse import OptionParser
@@ -168,9 +169,13 @@ def refresh(message):
   try:
     print('Client requests chart config')
     # emit the number of graph value sets, this could emit more details canvasJS configs
-    emit('chart config', {'data': len(values.pop())})
+    #emit('chart config', {'data': len(values.pop())})
+    #data = json.dumps({'number': len(values.pop()), 'titles': options.names})
+    emit('chart config', {'data': {'number': len(values.pop()), 'titles': options.names} })
+    
+    
   except Exception, e:
-    logger.warn("error sending chart config, sending reconnect instruction")
+    logger.warn("error sending chart config, sending reconnect instruction " + str(e))
     emit("chart config error", {'data': 'unable to determine number of charts'})
 
 # socket.io refresh request
@@ -184,6 +189,10 @@ def refresh(message):
 # send a value change from outside the Flask context.
 def broadcast_value(val):
   socketio.emit("chart data", {'data': val}, namespace='/stream')
+
+# list builder for optparse
+def list_callback(option, opt, value, parser):
+  setattr(parser.values, option.dest, value.split(','))
 
 if __name__ == "__main__":
   parser = OptionParser()
@@ -228,6 +237,13 @@ if __name__ == "__main__":
                     dest="regex", 
                     default=default_regex,
                     help="regex which extracts groups of values you want to send to html client")
+  
+  parser.add_option("-n", "--names", 
+                    dest="names",
+                    type='string',
+                    action='callback',
+                    callback=list_callback,
+                    help="comma separated names for the values in regex groups e.g. volts,particles,mass")                  
                     
   parser.add_option("-w", "--wait", 
                     dest="wait", 
@@ -236,6 +252,8 @@ if __name__ == "__main__":
                     help="seconds to wait between polling handling data ( FILE / SERIAL )") 
 
   (options, args) = parser.parse_args()
+  
+  logger.info("names: " + str(options.names))
   
   # set the neccesary
   app.config['SERVER_NAME'] = "localhost:%s" % options.port
