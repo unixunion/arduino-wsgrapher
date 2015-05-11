@@ -1,7 +1,16 @@
 <!DOCTYPE HTML>
 <html>
-
+  <meta name="viewport" content="target-densitydpi=device-dpi, width=device-width, user-scalable=no, maximum-scale=1, minimum-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
 <head>
+
+  <!--Import materialize.css-->
+  <link type="text/css" rel="stylesheet" href="/css/materialize.min.css"  media="screen,projection"/>
+
+  <!--Let browser know website is optimized for mobile-->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+
+  
 	<script type="text/javascript">
   
   // list of charts
@@ -12,7 +21,7 @@
   // refresh rate of all charts
   var refresh_rate = 20;
   // max graph and cache length in samples
-  var dataLength = 120;
+  var dataLength = 500;
   
   // common method to update all charts on the page
   var chart_update = function(y) {
@@ -25,13 +34,28 @@
     };
   };
   
+  var app_status = function(msg) {
+    // notify user
+    // var ni = document.getElementById('status');
+    // ni.innerHTML = msg;
+    Materialize.toast(msg, 4000)
+  };
   
 	window.onload = function () {
     console.log("window onload");
+    window.scrollTo(0,1);
   };
   
 	</script>
-  <script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+
+   
+  <!--<script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>-->
+  <script type="text/javascript" src="//code.jquery.com/jquery-2.1.1.min.js"></script>
+  <!-- Compiled and minified CSS -->
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/css/materialize.min.css">
+
+  <!-- Compiled and minified JavaScript -->
+  <script src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/js/materialize.min.js"></script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
 	<script type="text/javascript" src="/js/canvasjs.min.js"></script>
   <script type="text/javascript" src="/js/zchart.js"></script>
@@ -58,6 +82,9 @@
                 charts = [];
                 chartCount = 0;
                 
+                // notify user
+                app_status('Connecting...');
+                
                 // request config
                 console.log("request chart config");
                 socket.emit('chart config', {data: 'hit me'});
@@ -66,6 +93,7 @@
               
               socket.on('chart config error', function() {
                 console.log('chart config error');
+                app_status('Chart Config Error...');
                 socket.socket.disconnect();
                 socket.socket.reconnect();
                 socket.emit('chart config', {data: 'hit me'});
@@ -74,6 +102,7 @@
               socket.on('reconnect', function(msg) { console.log('reconnect')});
               socket.on('connecting', function(msg) { console.log('connecting')});
               socket.on('reconnecting', function(msg) { 
+                app_status('Reconnecting...');
                 socket.socket.reconnectionDelay /= 2
                 console.log('reconnecting ' + msg)
               });
@@ -89,9 +118,19 @@
               });
               
               // data handler for chart config
+              /*
+              
+              chart config data:
+              
+              { 
+                number: 4, // number of graphs to create
+                titles: ['volts', 'dust', 'raw', 'something else'] // titles for graphs
+              }
+              
+              */
               socket.on('chart config', function(msg) {
                   console.log('chart config event: ' + msg.data);
-                  console.log(msg.data['number']);
+                  app_status("Received Chart Config")
                   var i = 1;
                   while (i<=msg.data['number'])
                   {
@@ -104,6 +143,7 @@
                     i++;
                   }
                   // request graph data refresh if server supports it.
+                  app_status('Requesting Data Refresh...');
                   socket.emit('refresh', {data: 'hit me'});
               });
               
@@ -112,9 +152,30 @@
   
 </head>
 <body>
-  <div id="charts">
-    <div id="log"></div>
+
+  <div class="navbar-fixed">
+  <nav>
+      <div class="nav-wrapper">
+        <a href="#" class="brand-logo right">Logo</a>
+        <ul id="nav-mobile" class="left hide-on-med-and-down">
+          <li><a href="sass.html">Sass</a></li>
+          <li><a href="components.html">Components</a></li>
+          <li><a href="javascript.html">JavaScript</a></li>
+        </ul>
+      </div>
+    </nav>
   </div>
-  
+
+  <div class="container">
+    
+    
+    <!-- <div class="card-panel card-reveal">
+      <span id="status" class="blue-text text-darken-2"></span>
+    </div> -->
+        
+    <div id="charts" >
+    </div>
+    
+  </div>
 </body>
 </html>

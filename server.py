@@ -11,6 +11,9 @@ Examples:
 # a serial port with 3 numbers extracted from a sentence
 ./server.py -o /dev/tty.usbmodem1421 -w 1 -r '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);' -n raw,volt,dust
 
+# another simple serial monitor a single value
+./server.py -o /dev/tty.usbmodem1421 -w 1 -r '^([0-9]+)' -n 'biebers served',somevar -p 8081
+
 '''
 
 import sys
@@ -27,17 +30,14 @@ from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
-
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger("server")
-
-# app definition
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
 
 # vars
 connected = False
-default_port = '/dev/tty.usbmodem621'
+default_port = '/dev/tty.usbmodem'
 default_baud = 9600
 default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);'
 # other regex examples: '^([0-9]+) ([0-9]+) ([0-9]+)'
@@ -114,7 +114,6 @@ def handle_data(data):
     time.sleep(0.1)
 
 
-
 def monitor_file(filename, bufsize):
   '''
   monitors a directory for file changes, unfortunately we cannot monitor the file specifically,
@@ -152,47 +151,51 @@ def read_file(filename, bufsize):
 def index():
   return app.send_static_file('index.html')
 
+
 # serve the static content
 @app.route('/<path:path>')
 def static_proxy(path):
   return app.send_static_file("static/" + path)
 
+
 # socket.io connect event
 @socketio.on('connect', namespace='/stream')
 def connect():
-  print('Cient connect')
+  logger.info('Cient connect')
   emit('connect accept', {'data': 'Connected'})
+
 
 # socket.io refresh request
 @socketio.on('chart config', namespace='/stream')
 def refresh(message):
   try:
-    print('Client requests chart config')
-    # emit the number of graph value sets, this could emit more details canvasJS configs
-    #emit('chart config', {'data': len(values.pop())})
-    #data = json.dumps({'number': len(values.pop()), 'titles': options.names})
+    logger.info('Client requests chart config')
     emit('chart config', {'data': {'number': len(values.pop()), 'titles': options.names} })
     
-    
   except Exception, e:
+    time.sleep(2)
     logger.warn("error sending chart config, sending reconnect instruction " + str(e))
     emit("chart config error", {'data': 'unable to determine number of charts'})
+
 
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
-  print('Client refresh requested')
+  logger.info('Client refresh requested')
   # send the history
   for v in list(values):
     emit('chart data', {'data': v})
+
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):
   socketio.emit("chart data", {'data': val}, namespace='/stream')
 
+
 # list builder for optparse
 def list_callback(option, opt, value, parser):
   setattr(parser.values, option.dest, value.split(','))
+
 
 if __name__ == "__main__":
   parser = OptionParser()
@@ -241,6 +244,7 @@ if __name__ == "__main__":
   parser.add_option("-n", "--names", 
                     dest="names",
                     type='string',
+                    default="",
                     action='callback',
                     callback=list_callback,
                     help="comma separated names for the values in regex groups e.g. volts,particles,mass")                  
@@ -251,23 +255,21 @@ if __name__ == "__main__":
                     type="int",
                     help="seconds to wait between polling handling data ( FILE / SERIAL )") 
 
+  # parse the args
   (options, args) = parser.parse_args()
   
-  logger.info("names: " + str(options.names))
-  
   # set the neccesary
-  app.config['SERVER_NAME'] = "localhost:%s" % options.port
+  app.config['SERVER_NAME'] = "%s:%s" % (options.hostname, options.port)
   
   if options.serial_mode:
     serial_port = serial.Serial(options.file, options.baud, timeout=0)
     thread = threading.Thread(target=read_from_port, args=(serial_port,connected))
   else:
     thread = threading.Thread(target=monitor_file, args=(options.file, options.buffer_size))
-  
 
   thread.start()
   time.sleep(options.wait)
-  socketio.run(app)
+  socketio.run(app, host=options.hostname)
 
 
 

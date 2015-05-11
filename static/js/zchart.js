@@ -12,10 +12,15 @@ var ZChart = function(name, dataLength)
   var newdiv = document.createElement('div');
   var divIdName = 'zchartContainer' + chartCount;
   newdiv.setAttribute('id', divIdName);
+  newdiv.setAttribute('class', 'z-depth-1');
   newdiv.style.height = '200px';
   newdiv.style.width = '100%';
   newdiv.innerHTML = '';
   ni.appendChild(newdiv);
+  
+  var divider = document.createElement('div');
+  divider.setAttribute('class', 'divider');
+  ni.appendChild(divider);
   
   this.chart = new CanvasJS.Chart("zchartContainer" + chartCount,
   {

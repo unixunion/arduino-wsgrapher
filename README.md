@@ -26,4 +26,7 @@ The client operates as follows:
 The server is a python flask + socketio application. It spawns a worker thread which can monitor a serial port or a file, and handles data from it. Values are then extracted from the data using regex groups, each group being a integer value which will become a graph.
 
 
-![Screenshot](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot.gif)
+![Screenshot](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot.png)
+
+## UI
+http://materializecss.com/grid.html
