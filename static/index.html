@@ -59,6 +59,15 @@
                 chartCount = 0;
                 
                 // request config
+                console.log("request chart config");
+                socket.emit('chart config', {data: 'hit me'});
+              });
+              
+              
+              socket.on('chart config error', function() {
+                console.log('chart config error');
+                socket.socket.disconnect();
+                socket.socket.reconnect();
                 socket.emit('chart config', {data: 'hit me'});
               });
               

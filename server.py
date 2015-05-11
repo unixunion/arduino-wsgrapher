@@ -7,6 +7,10 @@ Examples:
 
 # a log file with 3 numbers separated by space
 ./server.py  -F -o console.log -r '^([0-9]+) ([0-9]+) ([0-9]+)'
+
+# a serial port with 3 numbers extracted from a sentence
+./server.py -o /dev/tty.usbmodem1421 -w 1 -S -r '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\]: (\d+.\d+);'
+
 '''
 
 import sys
@@ -94,7 +98,7 @@ def handle_data(data):
     while x <= num_groups:
       logger.debug("group: " + str(x))
       logger.info("group contents " + str(m.group(x)))
-      results.append(int(m.group(x)))
+      results.append(m.group(x))
       x=x+1
     
     # save results in values ( for browser refresh )
@@ -161,9 +165,13 @@ def connect():
 # socket.io refresh request
 @socketio.on('chart config', namespace='/stream')
 def refresh(message):
-  print('Client requests chart config')
-  # emit the number of graph value sets, this could emit more details canvasJS configs
-  emit('chart config', {'data': len(values.pop())})
+  try:
+    print('Client requests chart config')
+    # emit the number of graph value sets, this could emit more details canvasJS configs
+    emit('chart config', {'data': len(values.pop())})
+  except Exception, e:
+    logger.warn("error sending chart config, sending reconnect instruction")
+    emit("chart config error", {'data': 'unable to determine number of charts'})
 
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
@@ -192,6 +200,7 @@ if __name__ == "__main__":
   parser.add_option("-S", 
                     dest="serial_mode", 
                     action="store_true",
+                    default=True,
                     help="serial mode")
                     
   parser.add_option("-F", 
@@ -236,8 +245,10 @@ if __name__ == "__main__":
     thread = threading.Thread(target=read_from_port, args=(serial_port,connected))
   else:
     thread = threading.Thread(target=monitor_file, args=(options.file, options.buffer_size))
-    
+  
+
   thread.start()
+  time.sleep(options.wait)
   socketio.run(app)
 
 
