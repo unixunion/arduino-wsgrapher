@@ -1,3 +1,4 @@
 pyserial
 flask
 flask-socketio
+watchdog

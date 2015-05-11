@@ -1,18 +1,32 @@
 # arduino-wsgrapher
 
-A simple http server that serves a websocket client, and monitors a arduino's output values in order to push values to the web browser and ultimately update some graphs.
+A simple http server that serves a HTML client that can graph in realtime values from your arduino.
 
-## Server
+## overview
 
-The server is a python flash + socketio application. It spawns a worker thread which monitors a serial port, and handles data from the serial port in a somewhat rudimentary way. 
+* can monitor a file / serial port
+* regex extraction of values
+* dynamically configurable HTML client
 
-When a regex match is successful, the data is pushed to the HTML clients via a socketio.emit call.
+## client
 
-## HTML Client
+The HTML5 client uses CanvsJS for graphs and socket.io for websocket connections. The client uses websockets to obtain graph configurations, and plot values. Graphs are created dynamically during the websocket handshake process. The number of charts created is equal to the number of value groups being extracted with the regex.
 
-The graphing is done via canvasjs, and the client utilizes socket.io and jquery. The client is downloaded from the flask application, and immediately creates a websocket connection. After the connection is established, it does a "refresh" request which tell the server to push the last 500 datapoints.
+The client operates as follows:
+
+* the HTML client is downloaded via HTTP GET
+* jquery, socket.io and canvas.js are included
+* ws connect to server
+* ws request graph config ( number of graphs, titles )
+* ws request data history graphs
+* ws onmessage plot values for all graphs
+
+## server
+
+The server is a python flask + socketio application. It spawns a worker thread which can monitor a serial port or a file, and handles data from it. Values are then extracted from the data using regex groups, each group being a integer value which will become a graph.
 
 
+![Screenshot](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot.png)
 
-
-![Screenshot](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot.gif)
+## UI
+http://materializecss.com/grid.html
