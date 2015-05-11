@@ -1,7 +1,5 @@
 <!DOCTYPE HTML>
 <html>
-  <meta name="viewport" content="target-densitydpi=device-dpi, width=device-width, user-scalable=no, maximum-scale=1, minimum-scale=1" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
 <head>
 
   <!--Import materialize.css-->
@@ -22,7 +20,7 @@
   var data_lock = false;
   
   // refresh rate of all charts
-  var refresh_rate = 20;
+  var refresh_rate = 1000 ;
   // max graph and cache length in samples
   var dataLength = 120;
   
@@ -102,13 +100,13 @@
               // lock, clear, request-refresh
               refresh_history = function()
               {
-                app_status("Disabling Realtime Data");
+                // app_status("Disabling Realtime Data");
                 console.log("calling chart_clear");
                 data_lock = true; // lock to prevent timeline contamination during refresh
                 chart_clear();
                 
                 console.log("sending socket request for refresh");
-                app_status("Request Timeline Refresh");
+                app_status("Refresh Timeline");
                 socket.emit('refresh', {data: 'hit me'});
               }
               
@@ -169,7 +167,7 @@
               
               // the chart refresh complete event turns off the data_lock
               socket.on('chart refresh complete', function(msg) {
-                app_status("Enabling Realtime Data");
+                // app_status("Enabling Realtime Data");
                 console.log("refresh complete, unlocking data_lock");
                 data_lock = false;
               });
@@ -206,7 +204,7 @@
                     i++;
                   }
                   // request graph data refresh if server supports it.
-                  app_status('Requesting Data Refresh...');
+                  // app_status('Requesting Data Refresh...');
                   socket.emit('refresh', {data: 'hit me'});
               });
               
@@ -219,29 +217,81 @@
   <div class="navbar-fixed">
   <nav>
       <div class="nav-wrapper">
-        <a href="#" class="brand-logo right">Reapy</a>
-        <ul id="nav-mobile" class="left hide-on-med-and-down">
-          <li><a href="sass.html">Sass</a></li>
-          <li><a href="components.html">Components</a></li>
-          <li><a href="javascript.html">JavaScript</a></li>
+        
+        <!-- <div class="brand-logo right mdi-device-signal-cellular-connected-no-internet-0-bar"></div> -->
+        
+        <!--hide-on-med-and-down -->
+        
+        <!-- <div class="preloader-wrapper medium active right">
+        <div class="spinner-layer spinner-blue-only">
+              <div class="circle-clipper left">
+                <div class="circle"></div>
+              </div><div class="gap-patch">
+                <div class="circle"></div>
+              </div><div class="circle-clipper right">
+                <div class="circle"></div>
+              </div>
+            </div>
+        </div> -->
+        
+        
+        <ul id="nav-fixed" class="left">
+          <li><a class='dropdown-button' href='#' data-activates='history'><i class="mdi-action-history"></i></a></li>
+           
+          <ul id='history' class='dropdown-content'>
+            <li><a href="#!" onclick="set_history(120)">2m</a></li>
+            <li><a href="#!" onclick="set_history(600)">10m</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" onclick="set_history(1800)">30m</a></li>
+          </ul>
         </ul>
       </div>
-      <ul>
-      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(600)">10m</a>
-      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(120)">2m</a>
-      </ul>
     </nav>
   </div>
 
-  <div class="container">
+  <div>
     
     
     <!-- <div class="card-panel card-reveal">
       <span id="status" class="blue-text text-darken-2"></span>
     </div> -->
+      
+    <!-- <div id="progress" class="progress">
+        <div id="spinner" class="indeterminate"></div>
+    </div> -->
         
-    <div id="charts" >
+    <div id="charts" class="row" >
+      
     </div>
+    
+    <footer class="page-footer hide-on-med-and-down">
+     
+      <div class="container">
+       <div class="row">
+         <div class="col l6 s12">
+           <h5 class="white-text">Footer Content</h5>
+           <p class="grey-text text-lighten-4">You can use rows and columns here to organize your footer content.</p>
+         </div>
+         <div class="col l4 offset-l2 s12">
+           <h5 class="white-text">Links</h5>
+           <ul>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 3</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 4</a></li>
+           </ul>
+         </div>
+       </div>
+      </div>
+     
+      <div class="footer-copyright">
+        <div class="container">
+          © 2015 Copyright Psimax Aerospace
+          <a class="grey-text text-lighten-4 right" href="#!">About</a>
+        </div>
+      </div>
+      
+    </footer>
     
   </div>
 </body>

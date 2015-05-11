@@ -27,11 +27,14 @@ var ZChart = function(name, dl)
   
   this.chart = new CanvasJS.Chart("zchartContainer" + chartCount,
   {
+    interactivityEnabled: false,
 		title :{
 			text: this.name
 		},
 		data: [{
-			type: "splineArea",
+			type: "area",
+      color: "rgba(40,175,101,0.6)",
+      markerSize: 0,
 			dataPoints: this.dps 
 		}]
 	});
@@ -62,8 +65,6 @@ var ZChart = function(name, dl)
 
   this.clear = function()
   {
-    // this.dps=[];
-//     this.dps.push(0,0);
     while (this.dps.length > 0)
     {   
       this.dps.shift();
@@ -73,7 +74,7 @@ var ZChart = function(name, dl)
 
   this.zrender = function()
   {
-  	if (self.dps.length > self.dataLength)
+  	while (self.dps.length > self.dataLength)
   	{
 		  self.dps.shift();
   	}
