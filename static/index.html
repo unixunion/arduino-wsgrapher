@@ -58,6 +58,18 @@
     Materialize.toast(msg, 2500)
   };
   
+  var set_chart_style = function(style)
+  {
+    app_status("Changing Style to " + style);
+    var i = 0;
+    for (var c in charts)
+    {
+      charts[i].chart.options.data[0].type=style;
+      i++;
+    }
+    
+  };
+  
 	window.onload = function () {
     console.log("window onload");
     app_status("Ready");
@@ -227,14 +239,31 @@
         
         
         <ul id="nav-fixed" class="left">
-          <li><a class='dropdown-button' href='#' data-activates='history'><i class="mdi-action-history"></i></a></li>
-          <li><a class="right"><i class="mdi-action-help"></i></a></li>
-          <ul id='history' class='dropdown-content'>
-            <li><a href="#!" onclick="set_history(120)">2m</a></li>
-            <li><a href="#!" onclick="set_history(600)">10m</a></li>
+          
+          <li><a class='dropdown-button' href='#' data-activates='chartstyle'><i class="waves-effect mdi-action-assessment"></i></a></li>
+          <li><a class='dropdown-button' href='#' data-activates='history'><i class="waves-effect mdi-action-history"></i></a></li>
+          <li><a class="right"><i class="waves-effect mdi-action-help"></i></a></li>
+          
+          <!-- chart style options -->
+          <ul id='chartstyle' class='dropdown-content'>
+            <li><a href="#!" class='waves-effect waves-teal' onclick="set_chart_style('line')">line</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('stepLine')">stepLine</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('spline')">spline</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('column')">column</a></li>
             <li class="divider"></li>
-            <li><a href="#!" onclick="set_history(1800)">30m</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('area')">area</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('splineArea')">splineArea</a></li>
           </ul>
+          
+          <!-- history options -->
+          <ul id='history' class='dropdown-content'>
+            <li><a href="#!" class='waves-effect' onclick="set_history(120)">2m</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(600)">10m</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(1800)">30m</a></li>
+          </ul>
+          
+          
         </ul>
       </div>
     </nav>

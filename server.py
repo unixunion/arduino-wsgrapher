@@ -47,6 +47,7 @@ connected = False
 values = collections.deque(maxlen=500)
 realtime = True
 
+
 class FileHandler(FileSystemEventHandler):
   '''
   the handler for file change events when monitoring a file ( directory )

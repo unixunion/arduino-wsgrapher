@@ -10,7 +10,6 @@ var ZChart = function(name, dl)
   this.self = this;
   
   // create a new DIV
-  // console.log("creating div element for " + chartCount);
   var ni = document.getElementById('charts');
   var newdiv = document.createElement('div');
   var divIdName = 'zchartContainer' + chartCount;
@@ -21,12 +20,16 @@ var ZChart = function(name, dl)
   newdiv.innerHTML = '';
   ni.appendChild(newdiv);
   
+  // divider
   var divider = document.createElement('div');
   divider.setAttribute('class', 'divider');
   ni.appendChild(divider);
   
+  
   this.chart = new CanvasJS.Chart("zchartContainer" + chartCount,
   {
+    exportEnabled: true,
+    exportFileName: this.name,
     interactivityEnabled: false,
 		title :{
 			text: this.name
@@ -60,8 +63,8 @@ var ZChart = function(name, dl)
   	{
 		  this.dps.shift();
   	}
-    
   }
+
 
   this.clear = function()
   {
