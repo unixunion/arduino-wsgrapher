@@ -104,7 +104,6 @@ def handle_data(data):
       logger.debug("group: " + str(x))
       logger.debug("group contents " + str(m.group(x)))
       results.append(m.group(x))
-      #  datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S %Z%z')
       x=x+1
     
     # save results in values ( for browser refresh )
@@ -166,7 +165,7 @@ def static_proxy(path):
 # socket.io connect event
 @socketio.on('connect', namespace='/stream')
 def connect():
-  logger.info('Cient connect')
+  logger.info('client connect')
   emit('connect accept', {'data': 'Connected'})
 
 
@@ -174,7 +173,7 @@ def connect():
 @socketio.on('chart config', namespace='/stream')
 def refresh(message):
   try:
-    logger.info('Client requests chart config')
+    logger.info('client requests chart config')
     # subtract 1 ( the time index ) from number of values
     emit('chart config', {'data': {'number': len(values.pop())-1, 'titles': options.names} })
     
@@ -187,12 +186,12 @@ def refresh(message):
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
-  logger.info('Client refresh requested')
+  logger.info('client requesting refresh')
   # shutdown the realtime events to prevent timeline contamination
   realtime = False
   for v in list(values):
     emit('chart refresh data', {'data': v})
-  logger.info("done, unlocking and sending complete event")
+  logger.info("client refresh complete, enabling realtime events and sending completed message")
   realtime = True
   emit('chart refresh complete', {'data': 'done!'})
 
@@ -205,7 +204,7 @@ def broadcast_value(val):
     logger.warning("realtime event suspended");
 
 
-# list builder for optparse
+# list builder for optparse, takes a comma deliminated string, converts to list
 def list_callback(option, opt, value, parser):
   setattr(parser.values, option.dest, value.split(','))
 
@@ -281,7 +280,7 @@ if __name__ == "__main__":
     thread = threading.Thread(target=monitor_file, args=(options.file, options.buffer_size))
 
   thread.start()
-  time.sleep(options.wait)
+  time.sleep(1)
   socketio.run(app, host=options.hostname)
 
 

@@ -11,7 +11,6 @@
   
 	<script type="text/javascript">
   
-  // list of charts
   var charts = []; // chart list
   var chartCount = 0; // chart counter
   var data_lock = false; // used to lock chart data while refreshing
@@ -25,7 +24,7 @@
     app_status("Set History to " + d);
     console.log("setting dataLength to " + d);
     if (d > dataLength) {
-      console.log("calling refresh history");
+      console.log("new length > old length, calling refresh history");
       dataLength = d;
       refresh_history();
     }
@@ -56,7 +55,7 @@
   
   // notify user of events in UI
   var app_status = function(msg) {
-    Materialize.toast(msg, 3000)
+    Materialize.toast(msg, 2500)
   };
   
 	window.onload = function () {
@@ -229,7 +228,7 @@
         
         <ul id="nav-fixed" class="left">
           <li><a class='dropdown-button' href='#' data-activates='history'><i class="mdi-action-history"></i></a></li>
-           
+          <li><a class="right"><i class="mdi-action-help"></i></a></li>
           <ul id='history' class='dropdown-content'>
             <li><a href="#!" onclick="set_history(120)">2m</a></li>
             <li><a href="#!" onclick="set_history(600)">10m</a></li>
