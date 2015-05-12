@@ -1,3 +1,2 @@
-.ilike-blue-container {
-    @extend .blue, .lighten-4;
-  }
+.materialize-blue {
+  background-color: #fdeaeb !important; }
