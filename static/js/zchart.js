@@ -10,7 +10,6 @@ var ZChart = function(name, dl)
   this.self = this;
   
   // create a new DIV
-  // console.log("creating div element for " + chartCount);
   var ni = document.getElementById('charts');
   var newdiv = document.createElement('div');
   var divIdName = 'zchartContainer' + chartCount;
@@ -21,17 +20,24 @@ var ZChart = function(name, dl)
   newdiv.innerHTML = '';
   ni.appendChild(newdiv);
   
+  // divider
   var divider = document.createElement('div');
   divider.setAttribute('class', 'divider');
   ni.appendChild(divider);
   
+  
   this.chart = new CanvasJS.Chart("zchartContainer" + chartCount,
   {
+    exportEnabled: true,
+    exportFileName: this.name,
+    interactivityEnabled: false,
 		title :{
 			text: this.name
 		},
 		data: [{
-			type: "splineArea",
+			type: "area",
+      color: "rgba(40,175,101,0.6)",
+      markerSize: 0,
 			dataPoints: this.dps 
 		}]
 	});
@@ -57,13 +63,11 @@ var ZChart = function(name, dl)
   	{
 		  this.dps.shift();
   	}
-    
   }
+
 
   this.clear = function()
   {
-    // this.dps=[];
-//     this.dps.push(0,0);
     while (this.dps.length > 0)
     {   
       this.dps.shift();
@@ -73,7 +77,7 @@ var ZChart = function(name, dl)
 
   this.zrender = function()
   {
-  	if (self.dps.length > self.dataLength)
+  	while (self.dps.length > self.dataLength)
   	{
 		  self.dps.shift();
   	}

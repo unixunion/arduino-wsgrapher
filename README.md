@@ -27,6 +27,7 @@ The server is a python flask + socketio application. It spawns a worker thread w
 
 
 ![Screenshot](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot.png)
+![Screenshot2](https://raw.githubusercontent.com/unixunion/arduino-wsgrapher/master/screenshot2.png)
 
 ## UI
 http://materializecss.com/grid.html

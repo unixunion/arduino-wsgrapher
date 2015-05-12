@@ -1,7 +1,5 @@
 <!DOCTYPE HTML>
 <html>
-  <meta name="viewport" content="target-densitydpi=device-dpi, width=device-width, user-scalable=no, maximum-scale=1, minimum-scale=1" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
 <head>
 
   <!--Import materialize.css-->
@@ -13,21 +11,12 @@
   
 	<script type="text/javascript">
   
-  // list of charts
-  var charts = [];
-  
-  // counter
-  var chartCount = 0;
-  
-  var data_lock = false;
-  
-  // refresh rate of all charts
-  var refresh_rate = 20;
-  // max graph and cache length in samples
-  var dataLength = 120;
-  
-  // holder for refresh_history
-  var refresh_history; 
+  var charts = []; // chart list
+  var chartCount = 0; // chart counter
+  var data_lock = false; // used to lock chart data while refreshing
+  var refresh_rate = 1000; // render rate of charts
+  var dataLength = 120; // default graph length
+  var refresh_history; // pointer for refresh_history
   
   // set the history length to n elements
   var set_history = function(d)
@@ -35,14 +24,14 @@
     app_status("Set History to " + d);
     console.log("setting dataLength to " + d);
     if (d > dataLength) {
-      console.log("calling refresh history");
+      console.log("new length > old length, calling refresh history");
       dataLength = d;
       refresh_history();
     }
     dataLength = d;
   }
   
-  // common method to update all charts on the page
+  // common method to clear all charts data points
   var chart_clear = function() {
     app_status("Clearing Charts");
     var i = 0;
@@ -64,11 +53,21 @@
     };
   };
   
+  // notify user of events in UI
   var app_status = function(msg) {
-    // notify user
-    // var ni = document.getElementById('status');
-    // ni.innerHTML = msg;
-    Materialize.toast(msg, 4000)
+    Materialize.toast(msg, 2500)
+  };
+  
+  var set_chart_style = function(style)
+  {
+    app_status("Changing Style to " + style);
+    var i = 0;
+    for (var c in charts)
+    {
+      charts[i].chart.options.data[0].type=style;
+      i++;
+    }
+    
   };
   
 	window.onload = function () {
@@ -102,19 +101,20 @@
               // lock, clear, request-refresh
               refresh_history = function()
               {
-                app_status("Disabling Realtime Data");
-                console.log("calling chart_clear");
+                // app_status("Disabling Realtime Data");
+                console.log("locking and calling chart_clear");
                 data_lock = true; // lock to prevent timeline contamination during refresh
                 chart_clear();
                 
-                console.log("sending socket request for refresh");
-                app_status("Request Timeline Refresh");
+                console.log("request for refresh");
+                app_status("Requesting Refresh");
                 socket.emit('refresh', {data: 'hit me'});
               }
               
               // connect event
               socket.on('connect', function() {
                 console.log("connect")
+                app_status("Socket.IO Connect");
                 
                 // delete all graphs, this could only fire if config changed. TODO FIXME
                 var node = document.getElementById('charts');
@@ -125,15 +125,13 @@
                 charts = [];
                 chartCount = 0;
                 
-                // notify user
-                app_status('Connecting...');
-                
                 // request config
                 console.log("request chart config");
                 socket.emit('chart config', {data: 'hit me'});
               });
               
               
+              // the server emits a config error if chart information is unknown
               socket.on('chart config error', function() {
                 console.log('chart config error');
                 app_status('Chart Config Error...');
@@ -142,17 +140,14 @@
                 socket.emit('chart config', {data: 'hit me'});
               });
               
-              socket.on('reconnect', function(msg) { console.log('reconnect')});
-              socket.on('connecting', function(msg) { console.log('connecting')});
+              
+              // on reconnecting event, we set the reconnectionDelay to a non-exponential useless value.
               socket.on('reconnecting', function(msg) { 
                 app_status('Reconnecting...');
                 socket.socket.reconnectionDelay /= 2
                 console.log('reconnecting ' + msg)
               });
-              socket.on('connect_failed', function(msg) { console.log('connect_failed')});
-              socket.on('reconnect_failed', function(msg) { console.log('reconnect_failed')}); 
-              socket.on('close', function(msg) { console.log('close')});
-              socket.on('disconnect', function(msg) { console.log('disconnect')});
+              
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
@@ -169,16 +164,15 @@
               
               // the chart refresh complete event turns off the data_lock
               socket.on('chart refresh complete', function(msg) {
-                app_status("Enabling Realtime Data");
+                app_status("Refresh Complete");
                 console.log("refresh complete, unlocking data_lock");
                 data_lock = false;
               });
               
               
-              // data handler for chart config
               /*
               
-              chart config data:
+              chart config handler
               
               { 
                 number: 4, // number of graphs to create
@@ -205,10 +199,17 @@
                     }
                     i++;
                   }
-                  // request graph data refresh if server supports it.
-                  app_status('Requesting Data Refresh...');
                   socket.emit('refresh', {data: 'hit me'});
               });
+              
+              
+              // some method hooks for future
+              socket.on('reconnect', function(msg) { app_status("Socket.IO Reconnect")});
+              socket.on('connecting', function(msg) { app_status("Socket.IO Connecting")});
+              socket.on('connect_failed', function(msg) { app_status("Socket.IO Connect Failed")});
+              socket.on('reconnect_failed', function(msg) { app_status("Socket.IO Reconnect Failed")}); 
+              socket.on('close', function(msg) { app_status("Socket.IO Close")});
+              socket.on('disconnect', function(msg) { app_status("Socket.IO Disconnect")});
               
           });
       </script>
@@ -219,29 +220,98 @@
   <div class="navbar-fixed">
   <nav>
       <div class="nav-wrapper">
-        <a href="#" class="brand-logo right">Reapy</a>
-        <ul id="nav-mobile" class="left hide-on-med-and-down">
-          <li><a href="sass.html">Sass</a></li>
-          <li><a href="components.html">Components</a></li>
-          <li><a href="javascript.html">JavaScript</a></li>
+        
+        <!-- <div class="brand-logo right mdi-device-signal-cellular-connected-no-internet-0-bar"></div> -->
+        
+        <!--hide-on-med-and-down -->
+        
+        <!-- <div class="preloader-wrapper medium active right">
+        <div class="spinner-layer spinner-blue-only">
+              <div class="circle-clipper left">
+                <div class="circle"></div>
+              </div><div class="gap-patch">
+                <div class="circle"></div>
+              </div><div class="circle-clipper right">
+                <div class="circle"></div>
+              </div>
+            </div>
+        </div> -->
+        
+        
+        <ul id="nav-fixed" class="left">
+          
+          <li><a class='dropdown-button' href='#' data-activates='chartstyle'><i class="waves-effect mdi-action-assessment"></i></a></li>
+          <li><a class='dropdown-button' href='#' data-activates='history'><i class="waves-effect mdi-action-history"></i></a></li>
+          <li><a class="right"><i class="waves-effect mdi-action-help"></i></a></li>
+          
+          <!-- chart style options -->
+          <ul id='chartstyle' class='dropdown-content'>
+            <li><a href="#!" class='waves-effect waves-teal' onclick="set_chart_style('line')">line</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('stepLine')">stepLine</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('spline')">spline</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('column')">column</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('area')">area</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('splineArea')">splineArea</a></li>
+          </ul>
+          
+          <!-- history options -->
+          <ul id='history' class='dropdown-content'>
+            <li><a href="#!" class='waves-effect' onclick="set_history(120)">2m</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(600)">10m</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(1800)">30m</a></li>
+          </ul>
+          
+          
         </ul>
       </div>
-      <ul>
-      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(600)">10m</a>
-      <a class="waves-effect waves-circle waves-light btn-floating secondary-content" onclick="set_history(120)">2m</a>
-      </ul>
     </nav>
   </div>
 
-  <div class="container">
+  <div>
     
     
     <!-- <div class="card-panel card-reveal">
       <span id="status" class="blue-text text-darken-2"></span>
     </div> -->
+      
+    <!-- <div id="progress" class="progress">
+        <div id="spinner" class="indeterminate"></div>
+    </div> -->
         
-    <div id="charts" >
+    <div id="charts" class="row" >
+      
     </div>
+    
+    <footer class="page-footer hide-on-med-and-down">
+     
+      <div class="container">
+       <div class="row">
+         <div class="col l6 s12">
+           <h5 class="white-text">Footer Content</h5>
+           <p class="grey-text text-lighten-4">You can use rows and columns here to organize your footer content.</p>
+         </div>
+         <div class="col l4 offset-l2 s12">
+           <h5 class="white-text">Links</h5>
+           <ul>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 3</a></li>
+             <li><a class="grey-text text-lighten-3" href="#!">Link 4</a></li>
+           </ul>
+         </div>
+       </div>
+      </div>
+     
+      <div class="footer-copyright">
+        <div class="container">
+          © 2015 Copyright Psimax Aerospace
+          <a class="grey-text text-lighten-4 right" href="#!">About</a>
+        </div>
+      </div>
+      
+    </footer>
     
   </div>
 </body>
