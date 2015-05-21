@@ -247,18 +247,18 @@ def refresh(message):
 # plot point of interrest
 @socketio.on('flag', namespace='/stream')
 def flag(message):
-  logger.info("Client requesting flag plot: " + str(message))
-  
+  logger.info("client requesting flag plot: " + str(message))
   try:
     results = [] 
     results.append(CHART_MARKER)
     results.append(message['data'])
     values.append(results)
+    logger.inf("appended to values")
     datafile.write(str(results) + '\n')
+    logger.info("written to file")
   except Exception, e:
     logger.warn("unable to append the data file");
-
-  logger.info("Broadcasting: " + message['data'])
+  logger.info("broadcasting: " + message['data'])
   socketio.emit(CHART_MARKER, {'data': message['data']}, namespace='/stream')
 
 
