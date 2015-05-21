@@ -25,13 +25,16 @@ import time
 import datetime
 import collections
 import json
+import fileinput
+import ast
+from random import randint
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
 from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger("server")
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
@@ -97,7 +100,17 @@ def handle_data(data):
     results = []
     
     # start with a date in the results as 1st argument
-    results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S %Z%z'))
+    # results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S')) # %f
+
+    # results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S'))
+    
+    
+    # Date.UTC(year,month,day,hours,minutes,seconds,millisec)
+    tn = datetime.datetime.now()
+    # ms = int(tn.strftime('%f'))/1000
+    results.append(tn.strftime('%Y, %m, %d, %H, %M, %S, %f')[:-3])
+   
+    # results.append(tn.strftime('%Y, %m, %d, %H, %M, %S'))
     
     # loop over groups and make a list of the findings
     x = 1;
@@ -110,6 +123,10 @@ def handle_data(data):
     # save results in values ( for browser refresh )
     values.append(results)
     
+    # write to file
+    logger.debug("writing to file " + str(datafile))
+    datafile.write(str(results) + '\n')
+    
     # broadcast results
     logger.debug("broadcasting: " + str(results))
     broadcast_value(results)
@@ -117,6 +134,27 @@ def handle_data(data):
   except Exception as e:
     logger.debug("exception processing data " + str(e))
     time.sleep(0.1)
+
+
+def monitor_stdin():
+  while True:
+    try:
+      data = sys.stdin.readline()
+      handle_data(data)
+    except Exception as e:
+      logger.warning("exception processing stdin " + str(e))
+      time.sleep(options.wait)
+      
+def testmode():
+  while True:
+    try:
+      data = str(randint(1,100)) + ' ' + str(randint(1,100)) + ' ' + str(randint(1,100))
+      handle_data(data)
+      # time.sleep(randint(1,3)*0.1)
+      time.sleep(5)
+    except Exception as e:
+      logger.warning("exception processing testmode " + str(e))
+      time.sleep(options.wait)
 
 
 def monitor_file(filename, bufsize):
@@ -174,7 +212,7 @@ def connect():
 @socketio.on('chart config', namespace='/stream')
 def refresh(message):
   try:
-    logger.info('client requests chart config')
+    logger.info('client requests chart config: ' + str(message))
     # subtract 1 ( the time index ) from number of values
     emit('chart config', {'data': {'number': len(values.pop())-1, 'titles': options.names} })
     
@@ -187,12 +225,16 @@ def refresh(message):
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
-  logger.info('client requesting refresh')
+  logger.info('client requesting refresh: ' + str(message))
   # shutdown the realtime events to prevent timeline contamination
   realtime = False
+  i = 0;
   for v in list(values):
+    logger.debug("emitting value: " + str(v))
     emit('chart refresh data', {'data': v})
-  logger.info("client refresh complete, enabling realtime events and sending completed message")
+    i=i+1
+  logger.info("client refresh complete, enabling realtime events and sending completed message, samples: " + str(i))
+  time.sleep(2)
   realtime = True
   emit('chart refresh complete', {'data': 'done!'})
 
@@ -200,9 +242,10 @@ def refresh(message):
 # send a value change from outside the Flask context.
 def broadcast_value(val):
   if realtime:
+    logger.info("broadcasting")
     socketio.emit("chart data", {'data': val}, namespace='/stream')
   else:
-    logger.warning("realtime event suspended");
+    logger.warning("realtime events suspended");
 
 
 # list builder for optparse, takes a comma deliminated string, converts to list
@@ -266,7 +309,24 @@ if __name__ == "__main__":
                     dest="wait", 
                     default=0.1,
                     type="int",
-                    help="seconds to wait between polling handling data ( FILE / SERIAL )") 
+                    help="seconds to wait between polling handling data ( FILE / SERIAL )")
+                    
+  parser.add_option("-t", "--test", 
+                    dest="test_mode", 
+                    default=False,
+                    action="store_true",
+                    help="test mode data")
+                    
+  parser.add_option("-d", "--datafile", 
+                    dest="datafile", 
+                    default="data.dat",
+                    help="history data file")
+  
+  parser.add_option("-x", 
+                    dest="nohistory",
+                    default=False,
+                    action="store_true",
+                    help="dont import history")
 
   # parse the args
   (options, args) = parser.parse_args()
@@ -274,15 +334,43 @@ if __name__ == "__main__":
   # set the neccesary
   app.config['SERVER_NAME'] = "%s:%s" % (options.hostname, options.port)
   
-  if options.serial_mode:
+  
+  if not options.nohistory:
+    for line in fileinput.input(options.datafile):
+        try:
+          # simple check for newline at end of line
+          if line[-1] == "\n":
+            logger.info("read data: " + line)
+            values.append(ast.literal_eval(line))
+            # values.append(line)
+          else:
+            logger.error("crc: bad line: " + line)
+        except Exception, e:
+          logger.error("exception: bad line: " + str(e))
+          pass
+  datafile = open(options.datafile, "a")
+  
+  
+  if options.test_mode:
+    logger.info("Test Mode")
+    thread = threading.Thread(target=testmode)
+  elif options.serial_mode:
     serial_port = serial.Serial(options.file, options.baud, timeout=0)
     thread = threading.Thread(target=read_from_port, args=(serial_port,connected))
-  else:
+  elif options.file != '-':
     thread = threading.Thread(target=monitor_file, args=(options.file, options.buffer_size))
-
+  elif options.file == '-':
+    logger.info("monitoring stdin")
+    thread = threading.Thread(target=monitor_stdin)
+  else:
+    logger.warn("unable to deal with input")
+  
   thread.start()
   time.sleep(1)
   socketio.run(app, host=options.hostname)
+  
+  logger.info("shutting down")
+  datafile.close()
 
 
 

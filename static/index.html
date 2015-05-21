@@ -2,22 +2,172 @@
 <html>
 <head>
 
-  <!--Import materialize.css-->
-  <!-- <link type="text/css" rel="stylesheet" href="/css/materialize.min.css"  media="screen,projection"/> -->
-
   <!--Let browser know website is optimized for mobile-->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 
-  
 	<script type="text/javascript">
+  
+  // My ZChart Class
+
+  var ZChart = function(name, dl)
+  {
+    this.name = name;
+    this.dataLength = dl;
+    this.dps = [];
+    this.yVal = 0;
+    this.xVal = 0;
+    this.self = this;
+    // this.intervalType = intervalType;
+    // this.valueFormatString = valueFormatString;
+    this.eventRate = 1; // default event rate, will recalc on update
+    this.eventTokens = 0; // used to keep track of value changes. 
+    this.eventRateCounter = 0; // counter for how many times we have checked
+  
+  
+    // create a new DIV
+    var ni = document.getElementById('charts');
+    var newdiv = document.createElement('div');
+    var divIdName = 'zchartContainer' + chartCount;
+    newdiv.setAttribute('id', divIdName);
+    newdiv.setAttribute('class', 'z-depth-1');
+    newdiv.style.height = '200px';
+    newdiv.style.width = '100%';
+    newdiv.innerHTML = '';
+    ni.appendChild(newdiv);
+  
+    // divider
+    var divider = document.createElement('div');
+    divider.setAttribute('class', 'divider');
+    ni.appendChild(divider);
+  
+    this.chart = new CanvasJS.Chart("zchartContainer" + chartCount,
+    {
+      // animationEnabled: true,
+      // exportEnabled: true,
+      // exportFileName: this.name,
+      interactivityEnabled: false,
+  		title :{
+  			text: this.name
+  		},
+      // axisX: {
+      //   valueFormatString: this.valueFormatString,
+      //   intervalType: this.intervalType,
+      // },
+  		data: [{
+  			type: "area",
+        xValueType: "dateTime",
+        color: "rgba(40,175,101,0.6)",
+        markerSize: 0,
+  			dataPoints: this.dps 
+  		}]
+  	});
+  
+  
+    this.update = function(x1, y1)
+    {
+      
+      console.log("updating x1: " + x1 + " and y1: " + y1);
+      if (this.dataLength != dataLength )
+      {
+        console.log("dataLength changed, updating");
+        this.dataLength = dataLength;
+      }
+    
+      this.yVal=Math.round(y1);
+      this.xVal=x1;
+    
+      var xVal = x1.split(", ").map(function(x){return parseInt(x)});
+      console.log("xVal: " + xVal + " date: " + new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
+      // console.log(this.xVal[0], this.xVal[1], this.xVal[2], this.xVal[3], this.xVal[4], this.xVal[5], this.xVal[6]);
+    
+      // console.log(new Date (Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
+    
+    	this.dps.push({
+    		y: this.yVal,
+      
+        // with millis
+        x: new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6]))
+        
+        // seconds
+        // x: new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5]))
+
+
+    	});
+
+      if (this.dps.length > (this.dataLength*this.eventRate))
+      {
+        this.dps.shift();
+      }
+      this.eventTokens++;
+    }
+
+
+    this.clear = function()
+    {
+      while (this.dps.length > 0)
+      {   
+        this.dps.shift();
+      }
+    }
+
+
+    this.zrender = function()
+    {
+      // console.log("rendering " + self.dps.length + " dl " + self.dataLength * self.eventRate);
+      while (self.dps.length > (self.dataLength*self.eventRate))
+      {
+            self.dps.shift();
+      }
+      self.chart.render();
+    }
+  
+    this.calculate_event_rate = function()
+    {
+      
+      // set the eventRate equal to the eventTokens
+      self.eventRateCounter++;
+      self.eventRate = Math.ceil(self.eventTokens / self.eventRateCounter);
+    
+      // if the rate is insane, probably did a history load, reset for resample
+      if (self.eventRate >= 16)
+      {
+        self.eventTokens=0;
+      }
+      
+      if (self.eventRate<1)
+      {
+        self.eventRate=1;
+      }
+      
+      // if (data_lock) {
+      //   self.eventRate=1;
+      // }
+    
+      // self.eventTokens=0;
+      console.log("eventRate: " + self.eventRate + " dataLength: " + (self.dataLength*self.eventRate) );
+    }
+
+
+    var self = this;
+    window.setInterval(this.zrender, refresh_rate);
+    // window.setInterval(this.calculate_event_rate, 1000);
+    chartCount++;
+    
+  }
   
   var charts = []; // chart list
   var chartCount = 0; // chart counter
   var data_lock = false; // used to lock chart data while refreshing
-  var refresh_rate = 1000; // render rate of charts
-  var dataLength = 120; // default graph length
-  var refresh_history; // pointer for refresh_history
+  var refresh_rate = 200; // render rate of charts
+
+  var refresh_history; // pointer for refresh_history function to be defined later
   
+  // var intervalType='minutes';
+  // var valueFormatString='HH:MM';//HH:MM fff
+  
+  var view = 'default'; // the initial view name, new views should be downloaded from the server
+  var dataLength = 120; // default graph length
+    
   // set the history length to n elements
   var set_history = function(d)
   {
@@ -55,7 +205,7 @@
   
   // notify user of events in UI
   var app_status = function(msg) {
-    Materialize.toast(msg, 2500)
+    Materialize.toast(msg, 2500, 'z-depth-4')
   };
   
   var set_chart_style = function(style)
@@ -67,8 +217,15 @@
       charts[i].chart.options.data[0].type=style;
       i++;
     }
-    
   };
+  
+  // var set_timeline_style = function(type,format)
+  // {
+  //   app_status("Changing X Style to " + type + "/" + format);
+  //   intervalType=type;
+  //   valueFormatString=format;
+  //   refresh_history();
+  // }
   
 	window.onload = function () {
     console.log("window onload");
@@ -84,10 +241,10 @@
   <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/css/materialize.min.css">
 
   <!-- Compiled and minified JavaScript -->
-  <script src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/js/materialize.min.js"></script>
+  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/js/materialize.min.js"></script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
-	<script type="text/javascript" src="/js/canvasjs.min.js"></script>
-  <script type="text/javascript" src="/js/zchart.js"></script>
+	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/canvasjs/1.4.1/canvas.min.js"></script>
+  <!--<script type="text/javascript" src="/js/zchart.js"></script>-->
   <script type="text/javascript" charset="utf-8">
           $(document).ready(function(){
               namespace = '/stream';
@@ -108,13 +265,14 @@
                 
                 console.log("request for refresh");
                 app_status("Requesting Refresh");
-                socket.emit('refresh', {data: 'hit me'});
+                socket.emit('refresh', {data: dataLength});
               }
               
               // connect event
               socket.on('connect', function() {
                 console.log("connect")
                 app_status("Socket.IO Connect");
+                data_lock = true;
                 
                 // delete all graphs, this could only fire if config changed. TODO FIXME
                 var node = document.getElementById('charts');
@@ -127,7 +285,7 @@
                 
                 // request config
                 console.log("request chart config");
-                socket.emit('chart config', {data: 'hit me'});
+                socket.emit('chart config', {data: view});
               });
               
               
@@ -137,15 +295,15 @@
                 app_status('Chart Config Error...');
                 socket.socket.disconnect();
                 socket.socket.reconnect();
-                socket.emit('chart config', {data: 'hit me'});
+                socket.emit('chart config', {data: 'default'});
               });
               
               
               // on reconnecting event, we set the reconnectionDelay to a non-exponential useless value.
               socket.on('reconnecting', function(msg) { 
+                console.log('reconnecting ' + msg);
                 app_status('Reconnecting...');
                 socket.socket.reconnectionDelay /= 2
-                console.log('reconnecting ' + msg)
               });
               
               
@@ -159,7 +317,11 @@
               
               // separate handler for refresh data, do stop timeline sequence errors.
               socket.on('chart refresh data', function(msg) {
+                if (data_lock)
+                {
+                  // console.log("chart refres data");
                   chart_update(msg.data);
+                }
               });
               
               // the chart refresh complete event turns off the data_lock
@@ -195,11 +357,11 @@
                     {
                       charts.push(new ZChart(msg.data['titles'][i-2], dataLength));
                     } else {
-                      charts.push(new ZChart("value " + i, dataLength));
+                      charts.push(new ZChart("value " + (i-1), dataLength));
                     }
                     i++;
                   }
-                  socket.emit('refresh', {data: 'hit me'});
+                  socket.emit('refresh', {data: dataLength});
               });
               
               
@@ -242,26 +404,35 @@
           
           <li><a class='dropdown-button' href='#' data-activates='chartstyle'><i class="waves-effect mdi-action-assessment"></i></a></li>
           <li><a class='dropdown-button' href='#' data-activates='history'><i class="waves-effect mdi-action-history"></i></a></li>
+          <!-- <li><a class='dropdown-button' href='#' data-activates='timeline_style'><i class="waves-effect mdi-image-timer"></i></a></li> -->
+          
           <li><a class="right"><i class="waves-effect mdi-action-help"></i></a></li>
           
           <!-- chart style options -->
-          <ul id='chartstyle' class='dropdown-content'>
+          <ul id='chartstyle' class='dropdown-content z-depth-2'>
             <li><a href="#!" class='waves-effect waves-teal' onclick="set_chart_style('line')">line</a></li>
-            <li><a href="#!" class='waves-effect' onclick="set_chart_style('stepLine')">stepLine</a></li>
-            <li><a href="#!" class='waves-effect' onclick="set_chart_style('spline')">spline</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('area')">area</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('stepLine')">step</a></li>
             <li><a href="#!" class='waves-effect' onclick="set_chart_style('column')">column</a></li>
             <li class="divider"></li>
-            <li><a href="#!" class='waves-effect' onclick="set_chart_style('area')">area</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_chart_style('spline')">spline</a></li>
             <li><a href="#!" class='waves-effect' onclick="set_chart_style('splineArea')">splineArea</a></li>
           </ul>
           
           <!-- history options -->
-          <ul id='history' class='dropdown-content'>
+          <ul id='history' class='dropdown-content z-depth-2'>
             <li><a href="#!" class='waves-effect' onclick="set_history(120)">2m</a></li>
             <li><a href="#!" class='waves-effect' onclick="set_history(600)">10m</a></li>
             <li class="divider"></li>
             <li><a href="#!" class='waves-effect' onclick="set_history(1800)">30m</a></li>
           </ul>
+          
+          <!-- timeline style  options -->
+          <!-- <ul id='timeline_style' class='dropdown-content z-depth-2'>
+            <li><a href="#!" class='waves-effect' onclick="set_timeline_style('millisecond', 'HH:MM fff')">millis</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_timeline_style('minute', 'HH:MM')">minutes</a></li>
+          </ul> -->
+          
           
           
         </ul>
@@ -270,7 +441,6 @@
   </div>
 
   <div>
-    
     
     <!-- <div class="card-panel card-reveal">
       <span id="status" class="blue-text text-darken-2"></span>
@@ -306,7 +476,7 @@
      
       <div class="footer-copyright">
         <div class="container">
-          © 2015 Copyright Psimax Aerospace
+          © 2015 Psimax Aerospace
           <a class="grey-text text-lighten-4 right" href="#!">About</a>
         </div>
       </div>
