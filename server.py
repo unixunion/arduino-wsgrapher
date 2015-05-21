@@ -14,6 +14,9 @@ Examples:
 # another simple serial monitor a single value
 ./server.py -o /dev/tty.usbmodem1421 -w 1 -r '^([0-9]+)' -n 'biebers served',somevar -p 8081
 
+# listen on a tcp socket for some events separated by newline
+./server.py --ss --sp=8082  -r '^([0-9]+)' -n 'u/g dust cm3'
+
 '''
 
 import sys
