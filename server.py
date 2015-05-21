@@ -310,7 +310,7 @@ if __name__ == "__main__":
   parser.add_option("-r", "--regex", 
                     dest="regex", 
                     default=default_regex,
-                    help="regex which extracts groups of values you want to send to html client")
+                    help="regex which extracts groups of values you want to send to html client e.g. '^([0-9]+) ([0-9]+) ([0-9]+)'")
   
   parser.add_option("-n", "--names", 
                     dest="names",
