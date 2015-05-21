@@ -71,6 +71,7 @@ class FileHandler(FileSystemEventHandler):
       logger.debug("file change event received")
       read_file(options.file, options.buffer_size)
 
+
 class SocketHandler(SocketServer.StreamRequestHandler):
   def handle(self):
     # self.rfile is a file-like object created by the handler;
@@ -233,6 +234,7 @@ def connect():
 def refresh(message):
   try:
     logger.info('client requests chart config: ' + str(message))
+    logger.info('data values len: ' + len(values.pop())-2)
     # subtract 1 ( the time index ) from number of values
     emit(CHART_CONFIG, {'data': {'number': len(values.pop())-2, 'titles': options.names} })
     
