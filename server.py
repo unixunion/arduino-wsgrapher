@@ -30,6 +30,7 @@ import ast
 from random import randint
 from flask import Flask, request, redirect, url_for, send_from_directory, render_template
 from flask.ext.socketio import SocketIO, emit
+import SocketServer
 from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -47,7 +48,7 @@ default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\
 
 # internals
 connected = False
-values = collections.deque(maxlen=500)
+values = collections.deque(maxlen=10080)
 realtime = True
 
 
@@ -58,6 +59,17 @@ class FileHandler(FileSystemEventHandler):
   def on_modified(self, event):
       logger.debug("file change event received")
       read_file(options.file, options.buffer_size)
+
+class SocketHandler(SocketServer.StreamRequestHandler):
+  def handle(self):
+    # self.rfile is a file-like object created by the handler;
+    # we can now use e.g. readline() instead of raw recv() calls
+    self.data = self.rfile.readline().strip()
+    logger.info(self.data)
+    handle_data(self.data)
+    # Likewise, self.wfile is a file-like object used to write back
+    # to the client
+    #self.wfile.write(self.data.upper())
       
 
 def read_from_port(serial_port, connected=False):
@@ -328,6 +340,19 @@ if __name__ == "__main__":
                     action="store_true",
                     help="dont import history")
 
+  parser.add_option("--ss", 
+                    dest="socket_server",
+                    default=False,
+                    action="store_true",
+                    help="socket server")
+
+  parser.add_option("--sp", 
+                    dest="socket_server_port",
+                    default=8081,
+                    type="int",
+                    help="socket server port")
+
+
   # parse the args
   (options, args) = parser.parse_args()
   
@@ -351,7 +376,12 @@ if __name__ == "__main__":
   datafile = open(options.datafile, "a")
   
   
-  if options.test_mode:
+  if options.socket_server:
+    logger.info("starting socket server")
+    sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
+    thread = threading.Thread(target=sserver.serve_forever)
+    thread.daemon = True
+  elif options.test_mode:
     logger.info("Test Mode")
     thread = threading.Thread(target=testmode)
   elif options.serial_mode:
@@ -367,11 +397,11 @@ if __name__ == "__main__":
   
   thread.start()
   time.sleep(1)
+
+  logger.info("starting socketio")
   socketio.run(app, host=options.hostname)
   
   logger.info("shutting down")
+  sserver.shutdown()
   datafile.close()
-
-
-
-    
+  

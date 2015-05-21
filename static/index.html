@@ -309,6 +309,7 @@
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
+                app_status("Value Update: " + msg.data);
                 if (!data_lock)
                 {
                   chart_update(msg.data);
@@ -421,10 +422,10 @@
           
           <!-- history options -->
           <ul id='history' class='dropdown-content z-depth-2'>
-            <li><a href="#!" class='waves-effect' onclick="set_history(120)">2m</a></li>
-            <li><a href="#!" class='waves-effect' onclick="set_history(600)">10m</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(120)">2h</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(1440)">1d</a></li>
             <li class="divider"></li>
-            <li><a href="#!" class='waves-effect' onclick="set_history(1800)">30m</a></li>
+            <li><a href="#!" class='waves-effect' onclick="set_history(10080)">7d</a></li>
           </ul>
           
           <!-- timeline style  options -->
@@ -459,16 +460,12 @@
       <div class="container">
        <div class="row">
          <div class="col l6 s12">
-           <h5 class="white-text">Footer Content</h5>
-           <p class="grey-text text-lighten-4">You can use rows and columns here to organize your footer content.</p>
+           <h5 class="white-text">Websocket Grapher</h5>
          </div>
          <div class="col l4 offset-l2 s12">
            <h5 class="white-text">Links</h5>
            <ul>
-             <li><a class="grey-text text-lighten-3" href="#!">Link 1</a></li>
-             <li><a class="grey-text text-lighten-3" href="#!">Link 2</a></li>
-             <li><a class="grey-text text-lighten-3" href="#!">Link 3</a></li>
-             <li><a class="grey-text text-lighten-3" href="#!">Link 4</a></li>
+             <li><a class="grey-text text-lighten-3" href="https://github.com/unixunion/arduino-wsgrapher">WS Grapher on Github</a></li>
            </ul>
          </div>
        </div>

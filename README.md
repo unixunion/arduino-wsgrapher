@@ -4,7 +4,7 @@ A simple http server that serves a HTML client that can graph in realtime values
 
 ## overview
 
-* can monitor a file / serial port
+* can monitor a file / serial port / stdin / tcp socket
 * regex extraction of values
 * dynamically configurable HTML client
 
