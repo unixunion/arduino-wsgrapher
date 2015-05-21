@@ -234,7 +234,7 @@ def connect():
 def refresh(message):
   try:
     logger.info('client requests chart config: ' + str(message))
-    logger.info('data values len: ' + len(values.pop())-2)
+    logger.info('data values len: ' + str(len(values.pop())-2))
     # subtract 1 ( the time index ) from number of values
     emit(CHART_CONFIG, {'data': {'number': len(values.pop())-2, 'titles': options.names} })
     
