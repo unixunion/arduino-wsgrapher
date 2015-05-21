@@ -54,6 +54,8 @@
       //   intervalType: this.intervalType,
       // },
   		data: [{
+        // markerSize: 20,
+        // markerType: "circle",
   			type: "area",
         xValueType: "dateTime",
         color: "rgba(40,175,101,0.6)",
@@ -73,24 +75,17 @@
         this.dataLength = dataLength;
       }
     
-      this.yVal=Math.round(y1);
-      this.xVal=x1;
-    
+      this.yVal=Math.round(y1);    
       var xVal = x1.split(", ").map(function(x){return parseInt(x)});
+      this.xVal = new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6]))
+      
       console.log("xVal: " + xVal + " date: " + new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
-      // console.log(this.xVal[0], this.xVal[1], this.xVal[2], this.xVal[3], this.xVal[4], this.xVal[5], this.xVal[6]);
-    
-      // console.log(new Date (Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
     
     	this.dps.push({
     		y: this.yVal,
       
         // with millis
-        x: new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6]))
-        
-        // seconds
-        // x: new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5]))
-
+        x: this.xVal,
 
     	});
 
@@ -99,6 +94,26 @@
         this.dps.shift();
       }
       this.eventTokens++;
+    }
+
+
+    this.marker = function(msg, shape)
+    {
+      // { x: 50, y: 85, indexLabel: "high", markerType: "triangle",markerColor: "red", markerSize: 12 },
+      var lastval = this.dps.pop();
+      
+      console.log("lastval: " + lastval.y);
+      
+      this.dps.push({
+        y: lastval.y,
+        x: lastval.x,
+        indexLabel: msg,
+        // label: msg,
+        indexLabelOrientation: "vertical",
+        markerType: shape,
+        markerColor: "red",
+        markerSize: 12
+      });
     }
 
 
@@ -161,12 +176,16 @@
   var refresh_rate = 200; // render rate of charts
 
   var refresh_history; // pointer for refresh_history function to be defined later
+  var send_marker; // pointer for send_marker function to be defined later
   
   // var intervalType='minutes';
   // var valueFormatString='HH:MM';//HH:MM fff
   
   var view = 'default'; // the initial view name, new views should be downloaded from the server
   var dataLength = 120; // default graph length
+  
+  // other view based stuff
+  var setting_value_toast = true; // show toast when value changes
     
   // set the history length to n elements
   var set_history = function(d)
@@ -179,6 +198,29 @@
       refresh_history();
     }
     dataLength = d;
+  }
+  
+  // set a marker
+  var set_marker = function(msg, shape)
+  {
+    app_status("Dropping Marker: " + msg);
+    var i = 1;
+    for (var c in charts) {
+      if (msg == "complete") 
+      {
+        charts[i-1].marker(msg, "cross");
+      } else {
+        charts[i-1].marker(msg, "circle");
+      }
+      i++;
+    };
+  }
+  
+  // disable / enable toasting when a value update comes in
+  var toggle_value_toast = function()
+  {
+    setting_value_toast = !setting_value_toast;
+    app_status("Toggle Value Toast to: " + setting_value_toast );
   }
   
   // common method to clear all charts data points
@@ -201,6 +243,7 @@
       charts[i-1].update(y[0], y[i]);
       i++;
     };
+    
   };
   
   // notify user of events in UI
@@ -268,6 +311,13 @@
                 socket.emit('refresh', {data: dataLength});
               }
               
+              // send a marker request to the server
+              send_marker = function(msg)
+              {
+                app_status("Requesting Marker: " + msg);
+                socket.emit('flag', {data: msg});
+              }
+              
               // connect event
               socket.on('connect', function() {
                 console.log("connect")
@@ -290,9 +340,9 @@
               
               
               // the server emits a config error if chart information is unknown
-              socket.on('chart config error', function() {
+              socket.on('chart config error', function(msg) {
                 console.log('chart config error');
-                app_status('Chart Config Error...');
+                app_status('Chart Config Error: ' + msg.data );
                 socket.socket.disconnect();
                 socket.socket.reconnect();
                 socket.emit('chart config', {data: 'default'});
@@ -309,11 +359,21 @@
               
               // data handler for chart data, chart data is a list [v1, v2, v3]
               socket.on('chart data', function(msg) {
-                app_status("Value Update: " + msg.data);
+                if (setting_value_toast) 
+                {
+                  app_status("Value Update: " + msg.data);
+                }
+                
                 if (!data_lock)
                 {
                   chart_update(msg.data);
                 }
+              });
+              
+              // handle a marker event from the server
+              socket.on('chart marker', function(msg) {
+                app_status("Marker from Server: " + msg.data);
+                set_marker(msg.data);
               });
               
               // separate handler for refresh data, do stop timeline sequence errors.
@@ -403,11 +463,13 @@
         
         <ul id="nav-fixed" class="left blue">
           
-          <li><a class='dropdown-button' href='#' data-activates='chartstyle'><i class="waves-effect mdi-action-assessment"></i></a></li>
-          <li><a class='dropdown-button' href='#' data-activates='history'><i class="waves-effect mdi-action-history"></i></a></li>
-          <!-- <li><a class='dropdown-button' href='#' data-activates='timeline_style'><i class="waves-effect mdi-image-timer"></i></a></li> -->
+          <li><a class='dropdown-button' href='#' data-activates='chartstyle'>Style<i class="waves-effect mdi-action-assessment right"></i></a></li>
+          <li><a class='dropdown-button' href='#' data-activates='history'>History<i class="waves-effect mdi-action-history right"></i></a></li>
+          <li><a class='dropdown-button' href='#' data-activates='marker'>Marker<i class="waves-effect mdi-content-flag right"></i></a></li>
           
-          <li><a class="right"><i class="waves-effect mdi-action-help"></i></a></li>
+          <li><a class='dropdown-button' href='#' data-activates='settings'>Settings<i class="waves-effect mdi-action-settings right"></i></a></li>
+          
+          <!-- <li><a class="right"><i class="waves-effect mdi-action-help"></i></a></li> -->
           
           <!-- chart style options -->
           <ul id='chartstyle' class='dropdown-content z-depth-2'>
@@ -429,10 +491,20 @@
           </ul>
           
           <!-- timeline style  options -->
-          <!-- <ul id='timeline_style' class='dropdown-content z-depth-2'>
-            <li><a href="#!" class='waves-effect' onclick="set_timeline_style('millisecond', 'HH:MM fff')">millis</a></li>
-            <li><a href="#!" class='waves-effect' onclick="set_timeline_style('minute', 'HH:MM')">minutes</a></li>
-          </ul> -->
+          <ul id='marker' class='dropdown-content z-depth-2'>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('complete')">Complete</a></li>
+            <li class="divider"></li>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('Vacuuming')">Vacuuming</a></li>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('Cooking')">Cooking</a></li>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('3D Printing')">3D Printing</a></li>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('Laundry')">Laundry</a></li>
+            <li><a href="#!" class='waves-effect' onclick="send_marker('Airing')">Airing</a></li>
+            
+          </ul>
+          
+          <ul id='settings' class='dropdown-content z-depth-2'>
+            <li><a href="#!" class='waves-effect' onclick="toggle_value_toast()">Value Notify</a></li>            
+          </ul>
           
           
           
@@ -466,7 +538,7 @@
            <h5 class="white-text">Links</h5>
            <ul>
              <li><a class="grey-text text-lighten-3" href="https://github.com/unixunion/arduino-wsgrapher">WS Grapher on Github</a></li>
-             <li><a class="grey-text text-lighten-3" href="https://github.com/unixunion/Arduino-Dust-Sensor-Server"Arduino Dust Sensor</a></li>
+             <li><a class="grey-text text-lighten-3" href="https://github.com/unixunion/Arduino-Dust-Sensor-Server">Arduino Dust Sensor</a></li>
            </ul>
          </div>
        </div>

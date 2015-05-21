@@ -54,6 +54,14 @@ connected = False
 values = collections.deque(maxlen=10080)
 realtime = True
 
+CHART_DATA="chart data"
+CONNECT_ACCEPT="connect accept"
+CHART_CONFIG="chart config"
+CHART_CONFIG_ERROR="chart config error"
+CHART_MARKER="chart marker"
+CHART_REFRESH_DATA="chart refresh data"
+CHART_REFRESH_COMPLETE="chart refresh complete"
+
 
 class FileHandler(FileSystemEventHandler):
   '''
@@ -69,7 +77,7 @@ class SocketHandler(SocketServer.StreamRequestHandler):
     # we can now use e.g. readline() instead of raw recv() calls
     self.data = self.rfile.readline().strip()
     logger.info(self.data)
-    handle_data(self.data)
+    handle_data(CHART_DATA, self.data)
     # Likewise, self.wfile is a file-like object used to write back
     # to the client
     #self.wfile.write(self.data.upper())
@@ -89,7 +97,7 @@ def read_from_port(serial_port, connected=False):
     while True:
       try:
         reading = serial_port.readline().decode()
-        handle_data(reading)
+        handle_data(CHART_DATA, reading)
         time.sleep(options.wait)
       except Exception as e:
         print("error, reconnecting: " + str(e))
@@ -98,7 +106,7 @@ def read_from_port(serial_port, connected=False):
         serial_port = serial.Serial(port, 9600, timeout=0)
 
 
-def handle_data(data):
+def handle_data(topic, data):
   '''
   called by read_from_port / read_from_file, matches data groups via the regex, calls broadcase_values with a list of values[float,int,...]
   '''
@@ -114,11 +122,7 @@ def handle_data(data):
     # results holder
     results = []
     
-    # start with a date in the results as 1st argument
-    # results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S')) # %f
-
-    # results.append(datetime.datetime.now().strftime('%a %b %d %y %H:%M:%S'))
-    
+    results.append(topic)
     
     # Date.UTC(year,month,day,hours,minutes,seconds,millisec)
     tn = datetime.datetime.now()
@@ -148,23 +152,24 @@ def handle_data(data):
     
   except Exception as e:
     logger.debug("exception processing data " + str(e))
-    time.sleep(0.1)
+    time.sleep(1)
 
 
 def monitor_stdin():
   while True:
     try:
       data = sys.stdin.readline()
-      handle_data(data)
+      handle_data(CHART_DATA, data)
     except Exception as e:
       logger.warning("exception processing stdin " + str(e))
       time.sleep(options.wait)
-      
+
+
 def testmode():
   while True:
     try:
       data = str(randint(1,100)) + ' ' + str(randint(1,100)) + ' ' + str(randint(1,100))
-      handle_data(data)
+      handle_data(CHART_DATA, data)
       # time.sleep(randint(1,3)*0.1)
       time.sleep(5)
     except Exception as e:
@@ -201,7 +206,7 @@ def read_file(filename, bufsize):
   f.close()
   logger.debug("lines: " + str(lines))
   logger.debug("sending last element: " + lines[-1])
-  handle_data(lines[-1])
+  handle_data(CHART_DATA, lines[-1])
 
 
 # serve index.html
@@ -220,7 +225,7 @@ def static_proxy(path):
 @socketio.on('connect', namespace='/stream')
 def connect():
   logger.info('client connect')
-  emit('connect accept', {'data': 'Connected'})
+  emit(CONNECT_ACCEPT, {'data': 'Connected'})
 
 
 # socket.io refresh request
@@ -229,12 +234,30 @@ def refresh(message):
   try:
     logger.info('client requests chart config: ' + str(message))
     # subtract 1 ( the time index ) from number of values
-    emit('chart config', {'data': {'number': len(values.pop())-1, 'titles': options.names} })
+    emit(CHART_CONFIG, {'data': {'number': len(values.pop())-2, 'titles': options.names} })
     
   except Exception, e:
     time.sleep(2)
     logger.warn("error sending chart config, sending reconnect instruction " + str(e))
-    emit("chart config error", {'data': 'unable to determine number of charts'})
+    emit(CHART_CONFIG_ERROR, {'data': str(e)})
+
+
+# plot point of interrest
+@socketio.on('flag', namespace='/stream')
+def flag(message):
+  logger.info("Client requesting flag plot: " + str(message))
+  
+  try:
+    results = [] 
+    results.append(CHART_MARKER)
+    results.append(message['data'])
+    values.append(results)
+    datafile.write(str(results) + '\n')
+  except Exception, e:
+    logger.warn("unable to append the data file");
+
+  logger.info("Broadcasting: " + message['data'])
+  socketio.emit(CHART_MARKER, {'data': message['data']}, namespace='/stream')
 
 
 # socket.io refresh request
@@ -246,19 +269,23 @@ def refresh(message):
   i = 0;
   for v in list(values):
     logger.debug("emitting value: " + str(v))
-    emit('chart refresh data', {'data': v})
+    if (v[0] == CHART_DATA):
+      emit(CHART_REFRESH_DATA, {'data': v[1:len(v)]})
+    else:
+      logger.info("Emitting to: " + str(v[0]) + " data: " + str(v[1:len(v)]))
+      emit(v[0], {'data': v[1:len(v)]})
     i=i+1
   logger.info("client refresh complete, enabling realtime events and sending completed message, samples: " + str(i))
   time.sleep(2)
   realtime = True
-  emit('chart refresh complete', {'data': 'done!'})
+  emit(CHART_REFRESH_COMPLETE, {'data': 'done!'})
 
 
 # send a value change from outside the Flask context.
 def broadcast_value(val):
   if realtime:
     logger.info("broadcasting")
-    socketio.emit("chart data", {'data': val}, namespace='/stream')
+    socketio.emit(CHART_DATA, {'data': val[1:len(val)]}, namespace='/stream')
   else:
     logger.warning("realtime events suspended");
 
@@ -407,4 +434,5 @@ if __name__ == "__main__":
   logger.info("shutting down")
   sserver.shutdown()
   datafile.close()
+  thread.exit()
   
