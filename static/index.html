@@ -188,12 +188,14 @@
   var set_history = function(d)
   {
     app_status("Set History to " + d + " Samples");
-    dataLength = d;
+    
     console.log("setting dataLength to " + d + " samples");
     if (d > dataLength) {
-      console.log("new length > old length, calling refresh_history()");   
+      console.log("new length > old length, calling refresh_history()");
+      dataLength = d;
       refresh_history();
     }
+    dataLength = d;
   }
   
   // set a marker, this is called by a server side event.
