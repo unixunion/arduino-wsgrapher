@@ -119,8 +119,10 @@
 
     this.clear = function()
     {
+      console.log("clearing dps for chart")
+      // this.dps = [];
       while (this.dps.length > 0)
-      {   
+      {
         this.dps.shift();
       }
     }
@@ -153,12 +155,6 @@
       {
         self.eventRate=1;
       }
-      
-      // if (data_lock) {
-      //   self.eventRate=1;
-      // }
-    
-      // self.eventTokens=0;
       console.log("eventRate: " + self.eventRate + " dataLength: " + (self.dataLength*self.eventRate) );
     }
 
@@ -289,8 +285,12 @@
   <!-- Compiled and minified JavaScript -->
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/materialize/0.96.1/js/materialize.min.js"></script>
   <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
-	<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/canvasjs/1.4.1/canvas.min.js"></script>
+	<!-- // <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/canvasjs/1.4.1/canvas.min.js"></script> -->
   <!--<script type="text/javascript" src="/js/zchart.js"></script>-->
+  
+  <script type="text/javascript" src="/js/jquery.canvasjs.min.js"></script>
+  
+  
   <script type="text/javascript" charset="utf-8">
           $(document).ready(function(){
               namespace = '/stream';
@@ -372,7 +372,7 @@
                   chart_update(msg.data);
                 }
               });
-              
+               
               // handle a marker event from the server
               socket.on('chart marker', function(msg) {
                 if (setting_value_toast) {
