@@ -257,7 +257,7 @@ def flag(message):
     datafile.write(str(results) + '\n')
     logger.debug("written to file")
   except Exception, e:
-    logger.warn("unable to append the data file: " str(e));
+    logger.warn("unable to append the data file: " + str(e));
   logger.info("broadcasting: " + message['data'])
   socketio.emit(CHART_MARKER, {'data': message['data']}, namespace='/stream')
 
@@ -272,6 +272,9 @@ def refresh(message):
   
   e_max = message['data']
   e = e_max
+
+  if e>len(values):
+    e=len(values)
   
   while e>=1:
     d = values[-1*e]
@@ -320,7 +323,7 @@ if __name__ == "__main__":
                     
   parser.add_option("-p", "--port", 
                     dest="port", 
-                    default="8080",
+                    default="8081",
                     help="http service port to listen on")
                     
   parser.add_option("-S", 
