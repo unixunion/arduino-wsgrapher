@@ -306,7 +306,7 @@ if __name__ == "__main__":
                     
   parser.add_option("-p", "--port", 
                     dest="port", 
-                    default="8080",
+                    default="8081",
                     help="http service port to listen on")
                     
   parser.add_option("-S", 
