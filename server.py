@@ -76,8 +76,6 @@ class FileHandler(FileSystemEventHandler):
       read_file(options.file, options.buffer_size)
 
 
-
-
 class SocketHandler(SocketServer.StreamRequestHandler):
   def handle(self):
     # self.rfile is a file-like object created by the handler;
@@ -88,7 +86,16 @@ class SocketHandler(SocketServer.StreamRequestHandler):
     # Likewise, self.wfile is a file-like object used to write back
     # to the client
     #self.wfile.write(self.data.upper())
-      
+  
+
+def socket_server():
+  logger.info("starting tcp socket server on %s" % options.socket_server_port )
+  sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
+  while running:
+    sserver.handle_request()
+  logger.info("socket_server harrikiri")
+  sys.exit()
+
 
 def read_from_port(serial_port, connected=False):
   '''
@@ -289,6 +296,7 @@ def refresh(message):
 
   if e>len(values):
     e=len(values)
+    logger.debug("setting max history available to %s" % e)
   
   while e>=1:
     d = values[-1*e]
@@ -413,7 +421,7 @@ if __name__ == "__main__":
 
   parser.add_option("--sp", 
                     dest="socket_server_port",
-                    default=8081,
+                    default=8082,
                     type="int",
                     help="socket server port")
 
@@ -430,7 +438,7 @@ if __name__ == "__main__":
         try:
           # simple check for newline at end of line
           if line[-1] == "\n":
-            logger.info("read data: " + line)
+            logger.debug("read data: " + line)
             values.append(ast.literal_eval(line))
             # values.append(line)
           else:
@@ -443,8 +451,9 @@ if __name__ == "__main__":
   
   if options.socket_server:
     logger.info("starting socket server")
-    sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
-    thread = threading.Thread(target=sserver.serve_forever)
+    # sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
+    # thread = threading.Thread(target=sserver.serve_forever)
+    thread = threading.Thread(target=socket_server)
     thread.daemon = True
   elif options.test_mode:
     logger.info("Test Mode")
@@ -463,16 +472,18 @@ if __name__ == "__main__":
   
   thread.start()
   time.sleep(1)
-  logger.info("starting socketio")
-
+  
   try:
+    logger.info("starting socketio")
     socketio.run(app, host=options.hostname)
+    logger.info("socketio done")
   except KeyboardInterrupt:
     pass
+  except Exception, e:
+    logger.warn("error starting socketio: %s" % e)
   
+  running = False
   logger.info("shutting down")
   datafile.close()
-  running = False
-  thread.join()
-  logger.info("all down")
+  logger.info("files closed")
   
