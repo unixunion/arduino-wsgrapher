@@ -272,7 +272,9 @@ def refresh(message):
   
   e_max = message['data']
   e = e_max
-    
+
+  if e>len(values):
+    e=len(values)
   
   while e>=1:
     d = values[-1*e]
