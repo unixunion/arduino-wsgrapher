@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 '''
-Reads values from a file or serial port, then uses websocket to update the HTML client graph in real-time
+
+
+Reads date from a file / serial port / stdin / tcp socket, then uses regex's to extract plotable valyes, and serves the values over 
+websocket to update the HTML client graph in real-time.
 
 Examples:
 
@@ -53,6 +56,7 @@ default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\
 connected = False
 values = collections.deque(maxlen=10080)
 realtime = True
+running = True
 
 CHART_DATA="chart data"
 CONNECT_ACCEPT="connect accept"
@@ -70,6 +74,8 @@ class FileHandler(FileSystemEventHandler):
   def on_modified(self, event):
       logger.debug("file change event received")
       read_file(options.file, options.buffer_size)
+
+
 
 
 class SocketHandler(SocketServer.StreamRequestHandler):
@@ -95,7 +101,7 @@ def read_from_port(serial_port, connected=False):
   '''
   while not connected:
     connected = True
-    while True:
+    while running:
       try:
         reading = serial_port.readline().decode()
         handle_data(CHART_DATA, reading)
@@ -105,6 +111,8 @@ def read_from_port(serial_port, connected=False):
         serial_port.close();
         time.seep(1)
         serial_port = serial.Serial(port, 9600, timeout=0)
+    logger.info("read_from_port shutting down")
+    sys.exit()
 
 
 def handle_data(topic, data):
@@ -157,17 +165,19 @@ def handle_data(topic, data):
 
 
 def monitor_stdin():
-  while True:
+  while running:
     try:
       data = sys.stdin.readline()
       handle_data(CHART_DATA, data)
     except Exception as e:
       logger.warning("exception processing stdin " + str(e))
       time.sleep(options.wait)
-
+  logger.info("monitor_stdin going down")
+  sys.exit()
+  
 
 def testmode():
-  while True:
+  while running:
     try:
       data = str(randint(1,100)) + ' ' + str(randint(1,100)) + ' ' + str(randint(1,100))
       handle_data(CHART_DATA, data)
@@ -176,6 +186,8 @@ def testmode():
     except Exception as e:
       logger.warning("exception processing testmode " + str(e))
       time.sleep(options.wait)
+  logger.info("testmode going down")
+  sys.exit()
 
 
 def monitor_file(filename, bufsize):
@@ -189,11 +201,13 @@ def monitor_file(filename, bufsize):
 
   observer.start()
   try:
-      while True:
+      while running:
           time.sleep(options.wait)
   except KeyboardInterrupt:
       observer.stop()
   observer.join()
+  logger.info("monitor_file shutting down")
+  sys.exit()
   
 
 def read_file(filename, bufsize):
@@ -435,6 +449,7 @@ if __name__ == "__main__":
   elif options.test_mode:
     logger.info("Test Mode")
     thread = threading.Thread(target=testmode)
+    thread.daemon = True
   elif options.serial_mode:
     serial_port = serial.Serial(options.file, options.baud, timeout=0)
     thread = threading.Thread(target=read_from_port, args=(serial_port,connected))
@@ -448,12 +463,16 @@ if __name__ == "__main__":
   
   thread.start()
   time.sleep(1)
-
   logger.info("starting socketio")
-  socketio.run(app, host=options.hostname)
+
+  try:
+    socketio.run(app, host=options.hostname)
+  except KeyboardInterrupt:
+    pass
   
   logger.info("shutting down")
-  sserver.shutdown()
   datafile.close()
-  thread.exit()
+  running = False
+  thread.join()
+  logger.info("all down")
   
