@@ -269,14 +269,29 @@ def refresh(message):
   # shutdown the realtime events to prevent timeline contamination
   realtime = False
   i = 0;
-  for v in list(values):
-    logger.debug("emitting value: " + str(v))
-    if (v[0] == CHART_DATA):
-      emit(CHART_REFRESH_DATA, {'data': v[1:len(v)]})
+  
+  e_max = message['data']
+  e = e_max
+    
+  
+  while e>=1:
+    d = values[-1*e]
+    if (d[0] == CHART_DATA):
+      emit(CHART_REFRESH_DATA, {'data': d[1:len(d)]})
     else:
-      logger.info("Emitting to: " + str(v[0]) + " data: " + str(v[1:len(v)]))
-      emit(v[0], {'data': v[1:len(v)]})
+      logger.info("Emitting to: " + str(d[0]) + " data: " + str(d[1:len(d)]))
+      emit(d[0], {'data': d[1:len(d)]})
     i=i+1
+    e=e-1
+  
+  # for v in list(values):
+  #   logger.debug("emitting value: " + str(v))
+  #   if (v[0] == CHART_DATA):
+  #     emit(CHART_REFRESH_DATA, {'data': v[1:len(v)]})
+  #   else:
+  #     logger.info("Emitting to: " + str(v[0]) + " data: " + str(v[1:len(v)]))
+  #     emit(v[0], {'data': v[1:len(v)]})
+  #   i=i+1
   logger.info("client refresh complete, enabling realtime events and sending completed message, samples: " + str(i))
   time.sleep(2)
   realtime = True
