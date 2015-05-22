@@ -8,7 +8,6 @@
 	<script type="text/javascript">
   
   // My ZChart Class
-
   var ZChart = function(name, dl)
   {
     this.name = name;
@@ -173,33 +172,31 @@
   var chartCount = 0; // chart counter
   var data_lock = false; // used to lock chart data while refreshing
   var refresh_rate = 1000; // render rate of charts
-
-  var refresh_history; // pointer for refresh_history function to be defined later
-  var send_marker; // pointer for send_marker function to be defined later
-  
+  var dataLength = 120; // default graph length
+  var view = 'default'; // the initial view name, new views should be downloaded from the server
+  var setting_value_toast = false; // show toast when value changes initial state
   // var intervalType='minutes';
   // var valueFormatString='HH:MM';//HH:MM fff
   
-  var view = 'default'; // the initial view name, new views should be downloaded from the server
-  var dataLength = 120; // default graph length
+  // pointers
+  var refresh_history; // pointer for refresh_history function to be defined later
+  var send_marker; // pointer for send_marker function to be defined later
   
-  // other view based stuff
-  var setting_value_toast = false; // show toast when value changes
     
-  // set the history length to n elements
+  // set the history length to n samples, not that sample rate 
+  // here needs to be taken into account for time based windowing.
   var set_history = function(d)
   {
     app_status("Set History to " + d + " Samples");
+    dataLength = d;
     console.log("setting dataLength to " + d + " samples");
     if (d > dataLength) {
-      console.log("new length > old length, calling refresh history");
-      dataLength = d;
+      console.log("new length > old length, calling refresh_history()");   
       refresh_history();
     }
-    dataLength = d;
   }
   
-  // set a marker
+  // set a marker, this is called by a server side event.
   var set_marker = function(msg, shape)
   {
     if (setting_value_toast) {
@@ -207,7 +204,7 @@
     }
     var i = 1;
     for (var c in charts) {
-      if (msg == "complete") 
+      if (msg == "complete")
       {
         charts[i-1].marker(msg, "cross");
       } else {
@@ -217,12 +214,14 @@
     };
   }
   
+  
   // disable / enable toasting when a value update comes in
   var toggle_value_toast = function()
   {
     setting_value_toast = !setting_value_toast;
     app_status("Toggle Value Toast to: " + setting_value_toast );
   }
+  
   
   // common method to clear all charts data points
   var chart_clear = function() {
