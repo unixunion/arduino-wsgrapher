@@ -253,9 +253,9 @@ def flag(message):
     results.append(CHART_MARKER)
     results.append(message['data'])
     values.append(results)
-    logger.inf("appended to values")
+    logger.debug("appended to values")
     datafile.write(str(results) + '\n')
-    logger.info("written to file")
+    logger.debug("written to file")
   except Exception, e:
     logger.warn("unable to append the data file: " str(e));
   logger.info("broadcasting: " + message['data'])
