@@ -68,7 +68,7 @@
     this.update = function(x1, y1)
     {
       
-      console.log("updating x1: " + x1 + " and y1: " + y1);
+      // console.log("updating x1: " + x1 + " and y1: " + y1);
       if (this.dataLength != dataLength )
       {
         console.log("dataLength changed, updating");
@@ -79,7 +79,7 @@
       var xVal = x1.split(", ").map(function(x){return parseInt(x)});
       this.xVal = new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6]))
       
-      console.log("xVal: " + xVal + " date: " + new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
+      // console.log("xVal: " + xVal + " date: " + new Date(Date.UTC(xVal[0], xVal[1], xVal[2], xVal[3], xVal[4], xVal[5], xVal[6])));
     
     	this.dps.push({
     		y: this.yVal,
