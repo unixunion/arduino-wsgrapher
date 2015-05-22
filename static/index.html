@@ -128,7 +128,7 @@
 
     this.zrender = function()
     {
-      // console.log("rendering " + self.dps.length + " dl " + self.dataLength * self.eventRate);
+      
       while (self.dps.length > (self.dataLength*self.eventRate))
       {
             self.dps.shift();
@@ -165,6 +165,7 @@
 
     var self = this;
     window.setInterval(this.zrender, refresh_rate);
+    // window.setInterval(this.chart.render, refresh_rate);
     // window.setInterval(this.calculate_event_rate, 1000);
     chartCount++;
     
@@ -173,7 +174,7 @@
   var charts = []; // chart list
   var chartCount = 0; // chart counter
   var data_lock = false; // used to lock chart data while refreshing
-  var refresh_rate = 200; // render rate of charts
+  var refresh_rate = 1000; // render rate of charts
 
   var refresh_history; // pointer for refresh_history function to be defined later
   var send_marker; // pointer for send_marker function to be defined later
@@ -185,7 +186,7 @@
   var dataLength = 120; // default graph length
   
   // other view based stuff
-  var setting_value_toast = true; // show toast when value changes
+  var setting_value_toast = false; // show toast when value changes
     
   // set the history length to n elements
   var set_history = function(d)
