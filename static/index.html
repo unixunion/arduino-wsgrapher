@@ -204,7 +204,9 @@
   // set a marker
   var set_marker = function(msg, shape)
   {
-    app_status("Dropping Marker: " + msg);
+    if (setting_value_toast) {
+        app_status("Dropping Marker: " + msg);
+    }
     var i = 1;
     for (var c in charts) {
       if (msg == "complete") 
@@ -373,7 +375,9 @@
               
               // handle a marker event from the server
               socket.on('chart marker', function(msg) {
-                app_status("Marker from Server: " + msg.data);
+                if (setting_value_toast) {
+                  app_status("Marker from Server: " + msg.data);
+                }
                 set_marker(msg.data);
               });
               
