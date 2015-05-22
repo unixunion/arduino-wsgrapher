@@ -189,8 +189,8 @@
   // set the history length to n elements
   var set_history = function(d)
   {
-    app_status("Set History to " + d);
-    console.log("setting dataLength to " + d + " Samples");
+    app_status("Set History to " + d + " Samples");
+    console.log("setting dataLength to " + d + " samples");
     if (d > dataLength) {
       console.log("new length > old length, calling refresh history");
       dataLength = d;
