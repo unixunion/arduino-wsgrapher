@@ -257,7 +257,7 @@ def flag(message):
     datafile.write(str(results) + '\n')
     logger.info("written to file")
   except Exception, e:
-    logger.warn("unable to append the data file");
+    logger.warn("unable to append the data file: " str(e));
   logger.info("broadcasting: " + message['data'])
   socketio.emit(CHART_MARKER, {'data': message['data']}, namespace='/stream')
 
@@ -272,7 +272,6 @@ def refresh(message):
   
   e_max = message['data']
   e = e_max
-    
   
   while e>=1:
     d = values[-1*e]
