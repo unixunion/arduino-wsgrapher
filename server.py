@@ -253,7 +253,7 @@ def flag(message):
     results.append(CHART_MARKER)
     results.append(message['data'])
     values.append(results)
-    logger.debug("appended to values")
+    logger.debug("appended to values: " + str(results))
     datafile.write(str(results) + '\n')
     logger.debug("written to file")
   except Exception, e:
