@@ -278,6 +278,8 @@ def refresh(message):
   
   while e>=1:
     d = values[-1*e]
+    logger.debug("refresh data before emit: " + str(d[0]) + " data: " + str(d[1:len(d)]))
+    
     if (d[0] == CHART_DATA):
       emit(CHART_REFRESH_DATA, {'data': d[1:len(d)]})
     else:
