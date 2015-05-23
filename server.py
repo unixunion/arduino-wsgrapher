@@ -94,6 +94,7 @@ def socket_server():
   while running:
     sserver.handle_request()
   logger.info("socket_server harrikiri")
+  sserver.shutdown()
   sys.exit()
 
 
@@ -451,9 +452,9 @@ if __name__ == "__main__":
   
   if options.socket_server:
     logger.info("starting socket server")
-    # sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
-    # thread = threading.Thread(target=sserver.serve_forever)
-    thread = threading.Thread(target=socket_server)
+    sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
+    thread = threading.Thread(target=sserver.serve_forever)
+    #thread = threading.Thread(target=socket_server)
     thread.daemon = True
   elif options.test_mode:
     logger.info("Test Mode")
