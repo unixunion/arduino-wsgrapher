@@ -44,9 +44,9 @@
       // animationEnabled: true,
       // exportEnabled: true,
       // exportFileName: this.name,
-      // zoomEnabled: true,
-      // panEnabled: true,
-      interactivityEnabled: false,
+      zoomEnabled: true,
+      panEnabled: true,
+      // interactivityEnabled: false,
   		title :{
   			text: this.name
   		},
@@ -321,7 +321,7 @@
               send_marker = function(msg)
               {
                 app_status("Requesting Marker: " + msg);
-                socket.emit('flag', {data: msg});
+                socket.emit('marker', {data: msg});
               }
               
               // connect event
@@ -377,7 +377,7 @@
               });
                
               // handle a marker event from the server
-              socket.on('chart marker', function(msg) {
+              socket.on('marker', function(msg) {
                 if (setting_value_toast) {
                   app_status("Marker from Server: " + msg.data);
                 }

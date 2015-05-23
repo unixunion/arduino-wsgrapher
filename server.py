@@ -3,8 +3,8 @@
 '''
 
 
-Reads date from a file / serial port / stdin / tcp socket, then uses regex's to extract plotable valyes, and serves the values over 
-websocket to update the HTML client graph in real-time.
+Reads date from a file / serial port / stdin / tcp socket, then uses provided regex's to extract plotable values, and serves the values over 
+websocket to update the HTML client graph in real-time. Logs all values to file.
 
 Examples:
 
@@ -41,6 +41,8 @@ from optparse import OptionParser
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
+
+# instances of main application components
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
 logger = logging.getLogger("server")
 app = Flask(__name__, static_url_path='')
@@ -54,10 +56,12 @@ default_regex = '^Raw: (\d+.\d+); - Voltage: (\d+.\d+); - Dust Density \[ug\/m3\
 
 # internals
 connected = False
-values = collections.deque(maxlen=10080)
+values = collections.deque(maxlen=10080) # the size of the dequeue here is 1 week @ 60 second sampling rate
 realtime = True
 running = True
 
+# constants
+CONNECT="connect"
 CHART_DATA="chart data"
 CONNECT_ACCEPT="connect accept"
 CHART_CONFIG="chart config"
@@ -65,6 +69,7 @@ CHART_CONFIG_ERROR="chart config error"
 CHART_MARKER="chart marker"
 CHART_REFRESH_DATA="chart refresh data"
 CHART_REFRESH_COMPLETE="chart refresh complete"
+MARKER="marker"
 
 
 class FileHandler(FileSystemEventHandler):
@@ -77,6 +82,9 @@ class FileHandler(FileSystemEventHandler):
 
 
 class SocketHandler(SocketServer.StreamRequestHandler):
+  '''
+  handler for tcp socket data monitor
+  '''
   def handle(self):
     # self.rfile is a file-like object created by the handler;
     # we can now use e.g. readline() instead of raw recv() calls
@@ -89,6 +97,9 @@ class SocketHandler(SocketServer.StreamRequestHandler):
   
 
 def socket_server():
+  '''
+  opens a tcp port and monitors it for data, handles requests through SocketHandler class
+  '''
   logger.info("starting tcp socket server on %s" % options.socket_server_port )
   sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
   while running:
@@ -104,8 +115,6 @@ def read_from_port(serial_port, connected=False):
   this is not ideal, but since there is no bytesAvailable() method, this needs to be like this for now.
 
   call handle_data when its got some bytes to pass on.
-  
-  this should run in its own thread
   '''
   while not connected:
     connected = True
@@ -125,7 +134,11 @@ def read_from_port(serial_port, connected=False):
 
 def handle_data(topic, data):
   '''
-  called by read_from_port / read_from_file, matches data groups via the regex, calls broadcase_values with a list of values[float,int,...]
+  main handle_data method
+  
+  called by all the data monitors, and matches data groups via regex. 
+  values are extracted from the data, and appended to data file, and broadcast to all connected clients
+  
   '''
   recv_data = data
   logger.debug("handling data: " + recv_data)
@@ -173,6 +186,9 @@ def handle_data(topic, data):
 
 
 def monitor_stdin():
+  '''
+  monitors stdin for newline separated data chunks, passes to handle_data as per protocol
+  '''
   while running:
     try:
       data = sys.stdin.readline()
@@ -185,11 +201,13 @@ def monitor_stdin():
   
 
 def testmode():
+  '''
+  calles handle_data with some random numbers for testing purposes
+  '''
   while running:
     try:
       data = str(randint(1,100)) + ' ' + str(randint(1,100)) + ' ' + str(randint(1,100))
       handle_data(CHART_DATA, data)
-      # time.sleep(randint(1,3)*0.1)
       time.sleep(5)
     except Exception as e:
       logger.warning("exception processing testmode " + str(e))
@@ -201,7 +219,7 @@ def testmode():
 def monitor_file(filename, bufsize):
   '''
   monitors a directory for file changes, unfortunately we cannot monitor the file specifically,
-  therefore, make sure your log files are in their own directory.
+  therefore, make sure your log files are in their own directory to avoid unneccesary work.
   '''
   event_handler = FileHandler()
   observer = Observer()
@@ -245,19 +263,19 @@ def static_proxy(path):
 
 
 # socket.io connect event
-@socketio.on('connect', namespace='/stream')
+@socketio.on(CONNECT, namespace='/stream')
 def connect():
-  logger.info('client connect')
+  logger.info('client connect request')
   emit(CONNECT_ACCEPT, {'data': 'Connected'})
 
 
 # socket.io refresh request
-@socketio.on('chart config', namespace='/stream')
+@socketio.on(CHART_CONFIG, namespace='/stream')
 def refresh(message):
   try:
-    logger.info('client requests chart config: ' + str(message))
-    logger.info('data values len: ' + str(len(values.pop())-2))
-    # subtract 1 ( the time index ) from number of values
+    logger.info('client chart config request: ' + str(message))
+    logger.info('server data values len: ' + str(len(values.pop())-2))
+    # subtract 2 ( the topic and the time index ) from number of values
     emit(CHART_CONFIG, {'data': {'number': len(values.pop())-2, 'titles': options.names} })
     
   except Exception, e:
@@ -267,7 +285,7 @@ def refresh(message):
 
 
 # plot point of interrest
-@socketio.on('flag', namespace='/stream')
+@socketio.on(MARKER, namespace='/stream')
 def flag(message):
   logger.info("client requesting flag plot: " + str(message))
   try:
@@ -281,20 +299,19 @@ def flag(message):
   except Exception, e:
     logger.warn("unable to append the data file: " + str(e));
   logger.info("broadcasting: " + message['data'])
-  socketio.emit(CHART_MARKER, {'data': message['data']}, namespace='/stream')
+  socketio.emit(MARKER, {'data': message['data']}, namespace='/stream')
 
 
 # socket.io refresh request
 @socketio.on('refresh', namespace='/stream')
 def refresh(message):
   logger.info('client requesting refresh: ' + str(message))
-  # shutdown the realtime events to prevent timeline contamination
-  realtime = False
-  i = 0;
   
-  e_max = message['data']
-  e = e_max
+  realtime = False # shutdown the realtime events to prevent timeline contamination
+  i = 0; # counter for how many events were emitting for logging later
+  e = message['data'] # get thre desired count of records from the message
 
+  # if the desired number of recoreds exceeds whats in the value history, adjust accordingly
   if e>len(values):
     e=len(values)
     logger.debug("setting max history available to %s" % e)
@@ -302,23 +319,14 @@ def refresh(message):
   while e>=1:
     d = values[-1*e]
     logger.debug("refresh data before emit: " + str(d[0]) + " data: " + str(d[1:len(d)]))
-    
     if (d[0] == CHART_DATA):
       emit(CHART_REFRESH_DATA, {'data': d[1:len(d)]})
     else:
       logger.info("Emitting to: " + str(d[0]) + " data: " + str(d[1:len(d)]))
       emit(d[0], {'data': d[1:len(d)]})
     i=i+1
-    e=e-1
+    e=e-1 # move the pointer left <-
   
-  # for v in list(values):
-  #   logger.debug("emitting value: " + str(v))
-  #   if (v[0] == CHART_DATA):
-  #     emit(CHART_REFRESH_DATA, {'data': v[1:len(v)]})
-  #   else:
-  #     logger.info("Emitting to: " + str(v[0]) + " data: " + str(v[1:len(v)]))
-  #     emit(v[0], {'data': v[1:len(v)]})
-  #   i=i+1
   logger.info("client refresh complete, enabling realtime events and sending completed message, samples: " + str(i))
   time.sleep(2)
   realtime = True
