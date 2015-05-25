@@ -94,6 +94,19 @@ class SocketHandler(SocketServer.StreamRequestHandler):
     # Likewise, self.wfile is a file-like object used to write back
     # to the client
     #self.wfile.write(self.data.upper())
+  
+
+def socket_server():
+  '''
+  opens a tcp port and monitors it for data, handles requests through SocketHandler class
+  '''
+  logger.info("starting tcp socket server on %s" % options.socket_server_port )
+  sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
+  while running:
+    sserver.handle_request()
+  logger.info("socket_server harrikiri")
+  sserver.shutdown()
+  sys.exit()
 
 
 def read_from_port(serial_port, connected=False):
@@ -447,6 +460,7 @@ if __name__ == "__main__":
   
   if options.socket_server:
     logger.info("starting socket server")
+    sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
     thread = threading.Thread(target=socket_server)
     thread.daemon = True
   elif options.test_mode:
