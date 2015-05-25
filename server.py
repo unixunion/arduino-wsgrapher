@@ -43,7 +43,7 @@ from watchdog.events import FileSystemEventHandler
 import logging
 
 # instances of main application components
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s', filename='server.log')
 logger = logging.getLogger("server")
 app = Flask(__name__, static_url_path='')
 socketio = SocketIO(app)
@@ -94,18 +94,6 @@ class SocketHandler(SocketServer.StreamRequestHandler):
     # Likewise, self.wfile is a file-like object used to write back
     # to the client
     #self.wfile.write(self.data.upper())
-  
-
-def socket_server():
-  '''
-  opens a tcp port and monitors it for data, handles requests through SocketHandler class
-  '''
-  logger.info("starting tcp socket server on %s" % options.socket_server_port )
-  sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
-  while running:
-    sserver.handle_request()
-  logger.info("socket_server harrikiri")
-  sys.exit()
 
 
 def read_from_port(serial_port, connected=False):
@@ -459,8 +447,6 @@ if __name__ == "__main__":
   
   if options.socket_server:
     logger.info("starting socket server")
-    # sserver = SocketServer.TCPServer(('', options.socket_server_port), SocketHandler)
-    # thread = threading.Thread(target=sserver.serve_forever)
     thread = threading.Thread(target=socket_server)
     thread.daemon = True
   elif options.test_mode:
